@@ -1,0 +1,131 @@
+#Rotate all log files the same way
+/opt/cox/log/apache/*1 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*2 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*3 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*4 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*5 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*6 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*7 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*8 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*9 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+
+/opt/cox/log/apache/*0 {
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 5
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/apache cleanup 14 5 > /opt/cox/log/apache/cleanup.log
+  endscript
+}
+

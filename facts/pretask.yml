@@ -1,0 +1,26 @@
+---
+
+
+
+-  set_fact:
+    rnum1: "{{ 100000000 | random }}"
+    run_once: yes
+
+-  set_fact:
+    rnum2: "{{ 100000000 | random }}"
+    run_once: yes
+
+
+-  set_fact:
+    ep_num: "{{ansible_date_time.epoch}}"
+    run_once: yes
+
+
+    
+- name: test file
+  lineinfile:
+    dest: /opt/ansible-playbooks/deploy_facts/facts.log
+    line: "{{ item }}"
+  with_items:
+    - '{{ansible_date_time.date}},{{ansible_date_time.time}},{{ansible_env.PWD}},{{hosts}},{{application_package}},{{ansible_env.SUDO_USER}},{{rnum1}},{{rnum2}}'
+

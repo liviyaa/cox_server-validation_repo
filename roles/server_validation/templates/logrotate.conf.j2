@@ -1,0 +1,15 @@
+
+/opt/cox/log/jboss/*.log {
+
+  compress
+  missingok
+  nocopytruncate
+  nomail
+  rotate 7 
+  daily
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 3 >/opt/cox/log/jboss/log/cleanup.log
+  endscript
+}
+

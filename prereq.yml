@@ -1,0 +1,4 @@
+- hosts: "{{ hosts }}"
+#- hosts: 70.175.255.249
+  tasks:
+    - command: sleep {{2}}

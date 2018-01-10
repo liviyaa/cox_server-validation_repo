@@ -1,0 +1,7 @@
+## {{ ansible_managed }}
+
+{# add limits described by limits.conf #}
+{% for item in cox_security_limits %}
+{{ item.domain }}	{{ item.type }}	{{ item.key }}	{{ item.value }}
+{% endfor %}
+

@@ -1,0 +1,17 @@
+---
+- hosts: localhost
+  tasks:
+    - include: facts/pretask.yml
+
+- hosts: "{{ hosts }}"
+  #serial: "2" 
+  #serial: "50%"
+  gather_facts: True  
+#  any_errors_fatal: True
+  roles:
+     - server_validation
+
+- hosts: localhost
+  tasks:
+    - include: facts/pretask.yml
+

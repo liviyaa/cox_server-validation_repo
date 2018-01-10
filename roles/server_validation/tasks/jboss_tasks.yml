@@ -1,0 +1,118 @@
+---
+# file: roles/orbit_app_servers/tasks/root_tasks.yml
+
+- name: Copy template configuration files in to jboss configuration folder under /opt/cox/<version>/configuration 
+  template: src={{item.src}} dest={{ APP_JBOSS_CONFIGURATION_DIR }}/{{item.dest}}  mode=0755 owner=jboss group=jboss
+  with_items:
+   - { src: 'cox-config.xml.j2', dest: 'cox-config.xml' }
+   - { src: 'override.properties.j2', dest: 'override.properties' }   
+   
+- name: Copy jboss logrotate file under  /opt/cox/<version>/configuration/ directory 
+  copy: src=conf/{{item.src}}  dest={{item.dest}} mode=0755 owner=jboss group=jboss  
+  with_items:
+   - { src: 'jboss-eap-logrotate', dest: '{{ APP_JBOSS_CONFIGURATION_DIR }}' } 
+   
+- name: Convert file format from DOS/MAC to UNIX text file
+  command: dos2unix {{item}}
+  with_items:
+   - "{{ APP_JBOSS_CONFIGURATION_DIR }}/jboss-eap-logrotate"    
+
+- name: Delete content of modules folder
+  file:
+    state: absent
+    path: "{{ APP_MODULES_DIR }}/"
+
+- name: Copy modules in to folder under /opt/cox/<version>/modules
+  copy: src={{ extract_application_path }}/{{EXTRACT_MODULES_DIR}}/ dest={{ APP_MODULES_DIR }}  mode=0755 owner=jboss group=jboss
+ 
+#- name: Copy certificates in to folder under /opt/cox/<version>/cert  
+#  copy: src={{ extract_application_path }}/{{CERT_DIR}}/ dest={{ APP_CERT_DIR }}  mode=0755 owner=jboss group=jboss
+  
+- name: Copy template configuration files in to folder under /opt/cox/<version>/sbin 
+  template: src={{item.src}} dest={{ APP_SBIN_DIR }}/{{item.dest}} mode=0755 owner=jboss group=jboss
+  with_items:
+   - { src: 'standalone.conf.j2', dest: 'standalone.conf' }  
+   - { src: 'jboss.j2', dest: 'jboss' }        
+#   - { src: 'apache.j2', dest: 'apache' }    
+#   - { src: 'custom-jboss-eap.j2', dest: 'custom-jboss-eap' } 
+ 
+- name: Convert file format from DOS/MAC to UNIX text file  
+  command: dos2unix {{ APP_SBIN_DIR }}/{{item}}
+  with_items:
+   - jboss
+#   - custom-jboss-eap
+#   - apache 
+  
+- name: Copy jboss config properties file to /opt/cox
+  template: src={{item.src}} dest={{ APP_JBOSS_CONFIGURATION_DIR }}/{{item.dest}}  mode=0755 owner=jboss group=jboss
+  with_items:
+   - { src: 'application-roles.properties.j2', dest: 'application-roles.properties' }
+   - { src: 'application-users.properties.j2', dest: 'application-users.properties' }
+   - { src: 'mgmt-users.properties.j2', dest: 'mgmt-users.properties' }
+   - { src: 'mgmt-groups.properties.j2', dest: 'mgmt-groups.properties' }
+   - { src: 'logging.properties.j2', dest: 'logging.properties' }
+
+
+###
+# make symbolic link for jboss and apache
+###  
+- name: Check if jboss script already exists
+  stat: path={{INSTALL_JBOSS_START_SCRIPT_SYMBOLIC_LOCATION}}
+  register: jboss_script
+
+- name: Backup jboss script
+  command: mv {{INSTALL_JBOSS_START_SCRIPT_SYMBOLIC_LOCATION}} {{BACKUP_JBOSS_START_SCRIPT_LOCATION}}
+  when: jboss_script.stat.exists
+  become: yes
+  become_user: root  
+
+- name: Create symlink to /etc/init.d/
+  file: src={{ APP_SBIN_DIR }}/{{item}} dest={{INSTALL_START_SCRIPT_SYMBOLIC_LOCATION}}/{{item}} state=link force=yes  mode=0755 owner=root group=root
+  with_items:
+   - jboss
+#  - apache
+  become: yes
+  become_user: root
+
+###
+# end of make symbolic link
+### 
+
+- name: Delete content of deploy folder
+  file:
+    state: absent
+    path: "{{ APP_DEPLOYMENTS_DIR }}/"
+
+#- name: deploy the version.war
+#  copy: src=deployments/version.war dest={{ APP_DEPLOYMENTS_DIR }} mode=0755 owner=jboss group=jboss
+#  register: version_war_copy_result
+ 
+#- name: deploy the healthcheck.jsp file
+#  template: src=healthcheck.jsp dest={{ APP_VERSION_WAR }}
+#  when: version_yml.stat.exists
+
+#- name: Check if version.txt file exists
+#  stat: path={{APP_VERSION_FILE_LOCATION}}
+#  register: version_txt
+
+#- name: Create if version.txt not exists
+#  file: path={{APP_VERSION_FILE_LOCATION}} state=touch mode=0755 owner=jboss group=jboss
+#  become: yes
+#  become_user: jboss
+#  when: not version_txt.stat.exists
+
+#- name: Update version.txt file from version.yml file
+#  copy: content={{project_version}} dest={{APP_VERSION_FILE_LOCATION}}
+#  become: yes
+#  become_user: jboss
+#  when: version_yml.stat.exists
+  
+#- name: Update version.txt file from declared variable if version.yml is not available
+#  copy: content={{APP_VERSION}} dest={{APP_VERSION_FILE_LOCATION}}
+#  become: yes
+#  become_user: jboss
+#  when: not version_yml.stat.exists  
+
+#- name: Copy deployables in to folder under /opt/cox/<version>/deployments
+#  copy: src={{ extract_application_path }}/{{APP_DIR}}/ dest={{ APP_DEPLOYMENTS_DIR }}  mode=0755 owner=jboss group=jboss
+

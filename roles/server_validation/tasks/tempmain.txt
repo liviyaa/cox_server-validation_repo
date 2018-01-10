@@ -1,0 +1,60 @@
+---
+# file: roles/sail_eap_servers/tasks/main.yml
+
+- name: SAIL server setup tasks - as jboss
+  include: jboss_tasks.yml
+  become: yes
+  become_user: jboss
+
+- name: Check if jboss script already exists
+  stat: path={{INSTALL_JBOSS_START_SCRIPT_SYMBOLIC_LOCATION}}
+  register: jboss_script
+
+- name: Check if apache script already exists
+  stat: path={{INSTALL_APACHE_START_SCRIPT_SYMBOLIC_LOCATION}}
+  register: apache_script
+
+- name: Backup jboss script
+  command: mv {{INSTALL_JBOSS_START_SCRIPT_SYMBOLIC_LOCATION}} {{BACKUP_JBOSS_START_SCRIPT_LOCATION}}
+  when: jboss_script.stat.exists
+  become: yes
+  become_user: root  
+
+- name: Backup apache script
+  command: mv {{INSTALL_APACHE_START_SCRIPT_SYMBOLIC_LOCATION}} {{BACKUP_APACHE_START_SCRIPT_LOCATION}}
+  when: apache_script.stat.exists
+  become: yes
+  become_user: root  
+
+- name: Create symlink to /etc/init.d/
+  file: src={{ APP_SBIN_DIR }}/{{item}} dest={{INSTALL_START_SCRIPT_SYMBOLIC_LOCATION}}/{{item}} state=link  mode=0755 owner=root group=root
+  with_items:
+   - jboss
+   - apache
+  become: yes
+  become_user: root  
+  
+- name: Copy logrotate configuration file into /etc/logrotate.d
+  copy: src=conf/{{item}}  dest=/etc/logrotate.d/{{item}} mode=0755 owner=root group=root
+  with_items:
+   - sail-jboss
+   - sail-apache
+  become: yes
+  become_user: root
+
+- name: Starting Jboss Server
+  service: name=jboss state=started
+  become: yes
+  become_user: root
+  
+- name: test API
+  uri:
+    url: "http://{{ansible_default_ipv4.address}}:8080/ccm/rest/probe/modules/"
+    method: GET
+    HEADER_Content-Type: "application/json"  
+    HEADER_Accept: "application/json"  
+    HEADER_Transaction-Id: "12345"  
+    HEADER_Authorization: "Basic c2FpbDpzYWlsdGVzdA=="  
+    return_content: yes
+    status_code: 200
+  delegate_to: localhost

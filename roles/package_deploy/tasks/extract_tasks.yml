@@ -1,0 +1,20 @@
+---
+# unarchiving ems tar ball
+
+- name: Make sure the extract directory is cleaned out 
+ # file: path="{{ extract_temp_dir }}" state=absent
+  command: rm -rf {{ extract_temp_dir }}/
+  run_once: true
+  delegate_to: "{{ ANSIBLE_MASTER_NODE }}"
+  become: yes
+  become_user: root    
+
+- name: Make sure temp directory exists
+  file: path={{ extract_application_path }} state=directory mode=0755
+  run_once: true
+  delegate_to: "{{ ANSIBLE_MASTER_NODE }}"
+
+- name: Extract the app to the designated location
+  unarchive: src={{ application_package }} dest={{ extract_application_path }} mode=0755 
+  run_once: true
+  delegate_to: "{{ ANSIBLE_MASTER_NODE }}"

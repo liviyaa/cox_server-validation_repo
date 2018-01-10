@@ -1,0 +1,33 @@
+[default]
+host = {{ansible_hostname}}
+
+[monitor://{{INSTALL_GC_LOG_JBOSS}}/gc*.log.*]
+index = {{SPLUNK_LOG_INDEX}}
+sourcetype = {{JBOSS_LOG_SOURCE_TYPE}}
+
+[monitor://{{INSTALL_LOG_JBOSS}}/{{ansible_hostname}}-monitor-access.log]
+index = {{SPLUNK_LOG_INDEX}}
+sourcetype = {{JBOSS_LOG_SOURCE_TYPE}}
+
+[monitor://{{INSTALL_LOG_JBOSS}}/{{ansible_hostname}}-access.log]
+index = {{SPLUNK_LOG_INDEX}}
+sourcetype = {{JBOSS_LOG_SOURCE_TYPE}} 
+
+[monitor://{{INSTALL_LOG_JBOSS}}/{{ansible_hostname}}-cox.log]
+index = {{SPLUNK_LOG_INDEX}}
+sourcetype = {{JBOSS_LOG_SOURCE_TYPE}}
+
+[monitor://{{INSTALL_LOG_JBOSS}}/{{ansible_hostname}}-server.log]
+index = {{SPLUNK_LOG_INDEX}}
+sourcetype = {{JBOSS_LOG_SOURCE_TYPE}}
+
+[monitor://{{INSTALL_LOG_APACHE}}/{{ansible_hostname}}-monitor-access.log]
+index = {{SPLUNK_LOG_INDEX}}
+sourcetype = {{APACHE_LOG_SOURCE_TYPE}}
+ignoreOlderThan = {{SPLUNK_INPUT_CONFIG_IGNORE_OLDER_THAN}}
+
+[monitor://{{INSTALL_LOG_APACHE}}/{{ansible_hostname}}-error.log]
+index = {{SPLUNK_LOG_INDEX}}
+sourcetype = {{APACHE_LOG_SOURCE_TYPE}}
+ignoreOlderThan = {{SPLUNK_INPUT_CONFIG_IGNORE_OLDER_THAN}}
+

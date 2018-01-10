@@ -1,0 +1,6 @@
+[tcpout]
+defaultGroup = default-autolb-group
+
+[tcpout:default-autolb-group]
+server = {{SPLUNK_SERVERS_IP}}
+autoLBFrequency =  {{SPLUNK_LB_FREQUENCY}}

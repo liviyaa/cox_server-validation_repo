@@ -1,0 +1,7 @@
+---
+directory:
+ - "{{DEPLOYMENTS_DIR}}"
+ - "{{JBOSS_CONFIGURATION_DIR}}"
+ - "{{EXTRACT_MODULES_DIR}}"
+ - "{{SBIN_DIR}}"
+ - "{{CERT_DIR}}"

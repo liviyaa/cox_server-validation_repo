@@ -1,0 +1,41 @@
+---
+# file: roles/common_app_servers/tasks/root_tasks.yml
+
+- name: Checking if app-<version> folder exists under /opt/cox
+  stat: path={{ app_dir }}
+  register: app_dir_stat_result
+     
+- name: If app-<version> folder does not exist the create new one
+  file: path={{ app_dir }} state=directory
+  when: not app_dir_stat_result.stat.exists  
+
+- name: read directory names
+  include_vars: cox_dir_structure.yml
+
+- name: Create folder structure under /opt/cox/app-<version> 
+  file: path={{ app_dir }}/{{ item }} state=directory  
+  with_items: "{{ directory }}"
+
+- name: Checking if jboss log folder exists under /opt/cox
+  stat: path={{ INSTALL_LOG_JBOSS }}
+  register: jboss_log_dir_stat_result
+     
+- name: If jboss log folder does not exist the create new one
+  file: path={{ INSTALL_LOG }} state=directory mode=0755 owner=jboss group=jboss 
+  when: not jboss_log_dir_stat_result.stat.exists  
+
+- name: Checking if jboss gc log folder exists under /opt/cox
+  stat: path={{ INSTALL_GC_LOG_JBOSS }}
+  register: jboss_gc_log_dir_stat_result
+     
+- name: If jboss gc log folder does not exist the create new one
+  file: path={{ INSTALL_GC_LOG_JBOSS }} state=directory mode=0755 owner=jboss group=jboss 
+  when: not jboss_gc_log_dir_stat_result.stat.exists 
+
+- name: Set permission in /opt/cox
+  file: path={{INSTALL_COX_DIR}} recurse=yes mode=0755 owner=jboss group=jboss 
+
+- name: Create symlink to /opt/cox/app-<version>  
+  file: src={{ app_dir }} dest={{ APP_HOME }} state=link  mode=0755 owner=jboss group=jboss   
+
+

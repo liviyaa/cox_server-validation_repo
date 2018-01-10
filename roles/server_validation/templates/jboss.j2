@@ -1,0 +1,1967 @@
+#!/bin/bash -f
+#
+# JBoss Control Script
+#
+# chkconfig: 345 80 20
+# description: JBoss EAP Container
+# processname: standalone
+#
+
+###
+# Source function library
+###
+if [ -e /etc/init.d/functions ]; then
+   . /etc/init.d/functions
+fi
+
+CMDPREFIX="su - jboss -c"
+#if [ -x /etc/init.d/functions ]; then
+#   CMDPREFIX="daemon --user jboss"
+#else
+#   CMDPREFIX="su - jboss -c"
+#fi
+
+PROGRAM="$0"
+if [ "$proc" == "" ]; then
+   proc="`basename $0`"
+fi
+
+###
+# Find path commands
+###
+if [ -x /bin/ls ]; then
+   LS="/bin/ls"
+elif [ -x /usr/bin/ls ]; then
+   LS="/usr/bin/ls"
+else
+   LS="ls"
+fi
+
+if [ -x /bin/rm ]; then
+   RM="/bin/rm"
+elif [ -x /usr/bin/rm ]; then
+   RM="/usr/bin/rm"
+else
+   RM="rm"
+fi
+
+if [ -x /bin/cut ]; then
+   CUT="/bin/cut"
+elif [ -x /usr/bin/cut ]; then
+   CUT="/usr/bin/cut"
+else
+   CUT="cut"
+fi
+
+if [ -x /bin/ps ]; then
+   PS="/bin/ps"
+elif [ -x /usr/bin/ps ]; then
+   PS="/usr/bin/ps"
+else
+   PS="ps"
+fi
+
+if [ -x /bin/grep ]; then
+   GREP="/bin/grep"
+elif [ -x /usr/bin/grep ]; then
+   GREP="/usr/bin/grep"
+else
+   GREP="grep"
+fi
+
+if [ -x /bin/egrep ]; then
+   EGREP="/bin/egrep"
+elif [ -x /usr/bin/egrep ]; then
+   EGREP="/usr/bin/egrep"
+else
+   EGREP="egrep"
+fi
+
+if [ -x /bin/kill ]; then
+   KILL="/bin/kill"
+elif [ -x /usr/bin/kill ]; then
+   KILL="/usr/bin/kill"
+else
+   KILL="kill"
+fi
+
+WGET="/usr/sfw/bin/wget"
+if [ -x /usr/bin/wget ]; then
+   WGET="/usr/bin/wget"
+fi
+if [ -x /usr/local/cvm/bin/wget ]; then
+   WGET="/usr/local/cvm/bin/wget"
+fi
+
+###
+# Determine APACHE location, and server
+###
+if [ -L /opt/home/apache ]; then
+   ABASE="`ls -al /opt/home/apache | $CUT -d'>' -f2-999 | $CUT -c2-999`"
+   if [ "`echo $ABASE | $CUT -c1-1`" != "/" ]; then
+      ABASE="/opt/home/$ABASE"
+   fi
+elif [ -L /export/home/apache ]; then
+   ABASE="`ls -al /export/home/apache | $CUT -d'>' -f2-999 | $CUT -c2-999`"
+   if [ "`echo $ABASE | $CUT -c1-1`" != "/" ]; then
+      ABASE="/export/home/$ABASE"
+   fi
+elif [ -L /home/apache ]; then
+   ABASE="`ls -al /home/apache | $CUT -d'>' -f2-999 | $CUT -c2-999`"
+   if [ "`echo $ABASE | $CUT -c1-1`" != "/" ]; then
+      ABASE="/home/$ABASE"
+   fi
+elif [ -L /opt/apache ]; then
+   ABASE="`ls -al /opt/apache | $CUT -d'>' -f2-999 | $CUT -c2-999`"
+   if [ "`echo $ABASE | $CUT -c1-1`" != "/" ]; then
+      ABASE="/opt/$ABASE"
+   fi
+elif [ -d /opt/home/apache ]; then
+   ABASE="/opt/home/apache"
+elif [ -d /export/home/apache ]; then
+   ABASE="/export/home/apache"
+elif [ -d /home/apache ]; then
+   ABASE="/home/apache"
+elif [ -d /opt/apache ]; then
+   ABASE="/opt/apache"
+else
+   ABASE="/opt/apache"
+fi
+
+###
+# Determine JBOSS location, and server
+###
+JBASE=""
+JBOSSHOME=""
+
+if [ -L /opt/home/jboss-eap ]; then
+   JBASE="`ls -al /opt/home/jboss-eap | cut -d'>' -f2-999 | cut -c2-999`"
+   if [ "`echo $JBASE | cut -c1-1`" != "/" ]; then
+      JBASE="/opt/home/$JBASE"
+   fi
+elif [ -L /export/home/jboss-eap ]; then
+   JBASE="`ls -al /export/home/jboss-eap | cut -d'>' -f2-999 | cut -c2-999`"
+   if [ "`echo $JBASE | cut -c1-1`" != "/" ]; then
+      JBASE="/export/home/$JBASE"
+   fi
+elif [ -L /home/jboss-eap ]; then
+   JBASE="`ls -al /home/jboss-eap | cut -d'>' -f2-999 | cut -c2-999`"
+   if [ "`echo $JBASE | cut -c1-1`" != "/" ]; then
+      JBASE="/home/$JBASE"
+   fi
+elif [ -L /opt/jboss-eap ]; then
+   JBASE="`ls -al /opt/jboss-eap | cut -d'>' -f2-999 | cut -c2-999`"
+   if [ "`echo $JBASE | cut -c1-1`" != "/" ]; then
+      JBASE="/opt/$JBASE"
+   fi
+elif [ -d /opt/home/jboss-eap ]; then
+   JBASE="/opt/home/jboss-eap"
+elif [ -d /export/home/jboss-eap ]; then
+   JBASE="/export/home/jboss-eap"
+elif [ -d /home/jboss-eap ]; then
+   JBASE="/home/jboss-eap"
+elif [ -d /opt/jboss-eap ]; then
+   JBASE="/opt/jboss-eap"
+else
+   JBASE="/opt/jboss-eap"
+fi
+
+if [ -d $JBASE/standalone/deployments ]; then
+   JBOSSHOME="$JBASE"
+   JSERVER="standalone"
+elif [ -d $JBASE/domain/deployments ]; then
+   JBOSSHOME="$JBASE"
+   JSERVER="domain"
+else
+   loc=""
+   for d in `find $JBASE -maxdepth 2 -name jboss-as -type d 2> /dev/null`; do
+      loc=$d
+   done
+   if [ "$loc" == "" ]; then
+      for d in `find $JBASE -maxdepth 2 -name server -type d 2> /dev/null`; do
+         loc=`dirname $d`
+      done
+   fi
+   if [ "$loc" != "" ]; then
+      JBOSSHOME="$loc"
+   fi
+
+   JSERVER="default"
+   for DIR in `find $JBOSSHOME -type d 2> /dev/null | grep "/server" | grep "/conf$" | grep -v "/jboss-web" | sort -u`; do
+      if [ "`echo $DIR | grep -c /all/`" == "0" -a "`echo $DIR | grep -c /default/`" == "0" -a "`echo $DIR | grep -c /minimal/`" == "0" -a "`echo $DIR | grep -c /production/`" == "0" -a "`echo $DIR | grep -c /standard/`" == "0" -a "`echo $DIR | grep -c /web/`" == "0" ]; then
+         JSERVER="$DIR"
+      fi
+   done
+   for DIR in `find $JBOSSHOME -type d 2> /dev/null | grep "/server" | grep "/conf$" | grep -v "/jboss-web" | sort -u`; do
+      if [ "`echo $DIR | grep -c /dcrm/`" == "1" ]; then
+         JSERVER="dcrm"
+      elif [ "`echo $DIR | grep -c /cvm/`" == "1" ]; then
+         JSERVER="cvm"
+      elif [ "`echo $DIR | grep -c /cox/`" == "1" ]; then
+         JSERVER="cox"
+      fi
+   done
+fi
+
+###
+# Determine root
+###
+if [ -d $JBOSSHOME/jboss-as ]; then
+   ROOT="$JBOSSHOME/jboss-as"
+else
+   ROOT="$JBOSSHOME"
+fi
+if [ -d $ROOT/server ]; then
+   JSERVERHOME="$ROOT/server/$JSERVER"
+   LOGHOME="$JSERVERHOME/log"
+   ROOTWAR="$JSERVERHOME/deploy/ROOT.war"
+   VERIFY1="$JSERVERHOME/farm/dcrm_admin_gui*.war"
+   VERIFY2="$JSERVERHOME/deploy/rec_engine*.war"
+else
+   JSERVERHOME="$ROOT/$JSERVER"
+   LOGHOME="$JSERVERHOME/log"
+   ROOTWAR="$JSERVERHOME/deployments/version.war"
+   VERIFY1=""
+   VERIFY2=""
+fi
+
+###
+# Find java
+###
+if [ -x /bin/java ]; then
+   JREHOME="/"
+elif [ -x /usr/bin/java ]; then
+   JREHOME="/usr"
+else
+   JREHOME="/usr"
+fi
+
+for f in `find $ROOT -name javac | sort -u`; do
+   if [ `echo $f | $GREP -c "/bin/javac"` -eq "1" ]; then
+      TMPJAVAC=$f
+   fi
+done
+for f in `find $ROOT -name javac | $GREP '/jdk/' | sort -u`; do
+   if [ `echo $f | $GREP -c "/bin/javac"` -eq "1" ]; then
+      TMPJAVAC=$f
+   fi
+done
+if [ "$TMPJAVAC" != "" ]; then
+   JREHOME="`dirname $TMPJAVAC`"
+   JREHOME="`dirname $JREHOME`"
+fi
+
+export JAVA_HOME="{{JAVA_HOME}}"
+JREHOME="{{JAVA_HOME}}"
+#export JAVA_HOME="`echo $JREHOME`"
+export JAVA="$JAVA_HOME/bin/java"
+
+###
+# modify some variables to handle new directory structure
+###
+ROOTWAR="{{APP_DEPLOYMENTS_DIR}}/version.war"
+LOGHOME="{{INSTALL_LOG_JBOSS}}"
+APPHOME="{{APP_HOME}}"
+
+
+###
+# Add jboss specific variables
+###
+if [ ! -d $LOGHOME ]; then
+   mkdir -p $LOGHOME > /dev/null 2>&1
+   chmod 755 $LOGHOME > /dev/null 2>&1
+   chown -R jboss:jboss $LOGHOME > /dev/null 2>&1
+fi
+
+if [ -d $ROOT/server ]; then
+   JBOSSCP="$ROOT/bin/shutdown.jar:$ROOT/client/jnet.jar"
+   JSEARCH="java*.*Dprogram.name=run.sh*.*c $JSERVER"
+else
+   JBOSSCP=""
+   for f in `find $ROOT/bin -name "*.jar" | grep "client/"`; do
+      if [ "$JBOSSCP" == "" ]; then
+         JBOSSCP=$f
+      else
+         JBOSSCP=`echo $JBOSSCP":"$f`
+      fi
+   done
+   JSEARCH="java*.*/${JSERVER}*.* cox*.*config.xml"
+fi
+JNDIPORT=${JNDIPORT:-"1100"}
+
+###
+# Get current version
+###
+read-current-version()
+{
+   #if [ -f /var/tmp/release/version.txt ]; then
+   if [ -f $ROOTWAR/version.txt ]; then
+      #VERSION="`cat /var/tmp/release/version.txt`"
+      VERSION="`cat $ROOTWAR/version.txt`"
+   else
+      VERSION="unknown"
+   fi
+   export VERSION
+}
+
+###
+# Make sure the ROOT.war/healthcheck.txt file is available
+#  -- open for customer traffic, just return the version number
+###
+open-vip()
+{
+   if [ ! -d $ROOTWAR ]; then
+      mkdir -p $ROOTWAR > /dev/null 2>&1
+      chmod 755 $ROOTWAR > /dev/null 2>&1
+      chown jboss:jboss $ROOTWAR > /dev/null 2>&1
+   fi
+
+   /bin/rm -f $ROOTWAR/healthcheck.txt > /dev/null 2>&1
+   touch $ROOTWAR > /dev/null 2>&1
+}
+
+###
+# Make sure the ROOT.war/healthcheck.txt file is available
+#  -- have it throw a 500 until started
+###
+close-vip()
+{
+   if [ ! -d $ROOTWAR ]; then
+      mkdir -p $ROOTWAR > /dev/null 2>&1
+      chmod 755 $ROOTWAR > /dev/null 2>&1
+      chown jboss:jboss $ROOTWAR > /dev/null 2>&1
+   fi
+
+   echo "CLOSED" > $ROOTWAR/healthcheck.txt
+   chmod 644 $ROOTWAR/healthcheck.txt > /dev/null 2>&1
+   chown jboss:jboss $ROOTWAR/healthcheck.txt > /dev/null 2>&1
+   touch $ROOTWAR > /dev/null 2>&1
+
+   # this is where apache is stopped!
+   if [ "$ABASE" != "" -a -d "$ABASE" ]; then
+      /etc/init.d/apache stop
+   fi
+}
+
+###
+# Procedure to wait for jboss to start
+#   - give it 10 minutes or until the started log statement appears
+###
+wait()
+{
+   # get previous values
+   previous="${1}"
+   preveixcvm="${2}"
+   prevdexcvm="${3}"
+   prevdewcvm="${4}"
+   previdecvm="${5}"
+   prevcnfcvm="${6}"
+   prevsubcvm="${7}"
+   prevfalcvm="${8}"
+   preveixcox="${9}"
+   prevdexcox="${10}"
+   prevdewcox="${11}"
+   previdecox="${12}"
+   prevcnfcox="${13}"
+   prevsubcox="${14}"
+   prevfalcox="${15}"
+
+   # find log files
+   slog=""
+   blog=""
+   clog=""
+   xlog=""
+   if [ -d $LOGHOME ]; then
+      slog=`find $LOGHOME -name "*server.log"`
+      blog=`find $LOGHOME -name "*boot.log"`
+      clog=`find $LOGHOME -name "*{{ APP_LOG_NAME }}"`
+      xlog=`find $LOGHOME -name "*cox.log"`
+   else
+      mkdir -p $LOGHOME > /dev/null 2>&1
+      chmod 755 $LOGHOME > /dev/null 2>&1
+      chown -R jboss:jboss $LOGHOME > /dev/null 2>&1
+   fi
+
+   echo "      ... waiting for JBoss to start (up to 10 minutes)"
+   completed="0"
+   counter="0"
+   possible="0"
+   while [ "$completed" -eq "0" -a "$counter" -lt 600 ]; do
+      if [ "$completed" == "0" ]; then
+         ###
+         # Check for deployment errors
+         ###
+         eixserver="0"
+         dexserver="0"
+         dewserver="0"
+         ideserver="0"
+         cnfserver="0"
+         subserver="0"
+         falserver="0"
+         fatserver="0"
+         if [ "$slog" != "" ]; then
+            eixserver=`grep ExceptionInInitializerError $slog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+            dexserver=`grep DeploymentException $slog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            dewserver=`grep DeploymentException $slog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            ideserver=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+            cnfserver=`grep ^java.lang.ClassNotFoundException: $slog 2>&1 | grep Exception | wc -l`
+            subserver=`grep DeploymentUnitProcessingException $slog 2>&1 | grep Exception | grep ERROR | wc -l`
+            falserver=`grep 'Failed to start service jboss' $slog 2>&1 | grep Exception | grep ERROR | wc -l`
+            fatserver=`grep ' FATAL ' $slog 2>&1 | wc -l`
+         fi
+
+         eixboot="0"
+         dexboot="0"
+         dewboot="0"
+         ideboot="0"
+         cnfboot="0"
+         subboot="0"
+         falboot="0"
+         fatboot="0"
+         if [ "$blog" != "" ]; then
+            eixboot=`grep ExceptionInInitializerError $blog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+            dexboot=`grep DeploymentException $blog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            dewboot=`grep DeploymentException $blog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            ideboot=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+            cnfboot=`grep ^java.lang.ClassNotFoundException: $blog 2>&1 | grep Exception | wc -l`
+            subboot=`grep DeploymentUnitProcessingException $blog 2>&1 | grep Exception | grep ERROR | wc -l`
+            falboot=`grep 'Failed to start service jboss' $blog 2>&1 | grep Exception | grep ERROR | wc -l`
+            fatboot=`grep ' FATAL ' $blog 2>&1 | wc -l`
+         fi
+
+         eixcvm="0"
+         dexcvm="0"
+         dewcvm="0"
+         idecvm="0"
+         cnfcvm="0"
+         subcvm="0"
+         falcvm="0"
+         if [ "$clog" != "" ]; then
+            eixcvm=`grep ExceptionInInitializerError $clog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+            dexcvm=`grep DeploymentException $clog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            dewcvm=`grep DeploymentException $clog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            idecvm=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+            cnfcvm=`grep ^java.lang.ClassNotFoundException: $clog 2>&1 | grep Exception | wc -l`
+            subcvm=`grep DeploymentUnitProcessingException $clog 2>&1 | grep Exception | grep ERROR | wc -l`
+            falcvm=`grep 'Failed to start service jboss' $clog 2>&1 | grep Exception | grep ERROR | wc -l`
+         fi
+
+         eixcox="0"
+         dexcox="0"
+         dewcox="0"
+         idecox="0"
+         cnfcox="0"
+         subcox="0"
+         falcox="0"
+         if [ "$xlog" != "" ]; then
+            eixcox=`grep ExceptionInInitializerError $xlog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+            dexcox=`grep DeploymentException $xlog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            dewcox=`grep DeploymentException $xlog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+            idecox=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+            cnfcox=`grep ^java.lang.ClassNotFoundException: $xlog 2>&1 | grep Exception | wc -l`
+            subcox=`grep DeploymentUnitProcessingException $xlog 2>&1 | grep Exception | grep ERROR | wc -l`
+            falcox=`grep 'Failed to start service jboss' $xlog 2>&1 | grep Exception | grep ERROR | wc -l`
+         fi
+
+         if [ "$dexserver" -gt 0 -o "$dewserver" -gt 0 -o "$eixserver" -gt 0 -o "$ideserver" -gt 0 -o "$cnfserver" -gt 0 -o "$subserver" -gt 0 -o "$falserver" -gt 0 -o "$fatserver" -gt 0 ]; then
+            echo "   ... found a possible issue in $slog"
+            possible="1"
+
+            # found a potential error, so up the counter to speed finishing
+            counter=$(( $counter + 150 ))
+            sleep 10
+         elif [ "$dexboot" -gt 0 -o "$dewboot" -gt 0 -o "$eixboot" -gt 0 -o "$ideboot" -gt 0 -o "$cnfboot" -gt 0 -o "$subboot" -gt 0 -o "$falboot" -gt 0 -o "$fatboot" -gt 0 ]; then
+            echo "   ... found a possible issue in $blog"
+            possible="1"
+
+            # found a potential error, so up the counter to speed finishing
+            counter=$(( $counter + 150 ))
+            sleep 10
+         elif [ "$dexcvm" -gt "$prevdexcvm" -o "$dewcvm" -gt "$prevdewcvm" -o "$eixcvm" -gt "$preveixcvm" -o "$idecvm" -gt "$previdecvm" -o "$cnfcvm" -gt "$prevcnfcvm" -o "$subcvm" -gt "$prevsubcvm" -o "$falcvm" -gt "$prevfalcvm" ]; then
+            echo "   ... found a possible issue in $clog"
+            possible="1"
+
+            # found a potential error, so up the counter to speed finishing
+            counter=$(( $counter + 150 ))
+            sleep 10
+         elif [ "$dexcox" -gt "$prevdexcox" -o "$dewcox" -gt "$prevdewcox" -o "$eixcox" -gt "$preveixcox" -o "$idecox" -gt "$previdecox" -o "$cnfcox" -gt "$prevcnfcox" -o "$subcox" -gt "$prevsubcox" -o "$falcox" -gt "$prevfalcox" ]; then
+            echo "   ... found a possible issue in $xlog"
+            possible="1"
+
+            # found a potential error, so up the counter to speed finishing
+            counter=$(( $counter + 150 ))
+            sleep 10
+         else
+            counter=$(( $counter + 6 ))
+            sleep 5
+         fi
+      fi
+
+      ###
+      # Count "Started"... quit once greater than previous number
+      ###
+      if [ -d $ROOT/server ]; then
+         started=`grep "] Started in " $xlog $clog $blog $slog 2>&1 | grep "SVNTag=" | wc -l`
+      else
+         started=`grep ") started " $xlog $clog $blog $slog 2>&1 | grep " JBoss EAP " | grep " Started " | wc -l`
+      fi
+
+      if [ "$started" -gt "$previous" ]; then
+         completed="1"
+      fi
+   done
+
+   if [ "$completed" -eq "0" ]; then
+      if [ "$possible" == "0" ]; then
+         $PROGRAM jstack
+         echo "ERROR: JBoss did not start within a standard timeframe!"
+         if [ "$DIE" == "false" ]; then
+            return 1;
+         else
+            $PROGRAM stop
+            exit 1;
+         fi
+      fi
+   else
+      echo "   ... JBoss startup completed: `date`"
+   fi
+
+   ###
+   # Check for deployment errors
+   ###
+   eixserver="0"
+   dexserver="0"
+   dewserver="0"
+   ideserver="0"
+   cnfserver="0"
+   subserver="0"
+   falserver="0"
+   fatserver="0"
+   if [ "$slog" != "" ]; then
+      eixserver=`grep ExceptionInInitializerError $slog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+      dexserver=`grep DeploymentException $slog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      dewserver=`grep DeploymentException $slog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      ideserver=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+      cnfserver=`grep ^java.lang.ClassNotFoundException: $slog 2>&1 | grep Exception | wc -l`
+      subserver=`grep DeploymentUnitProcessingException $slog 2>&1 | grep Exception | grep ERROR | wc -l`
+      falserver=`grep 'Failed to start service jboss' $slog 2>&1 | grep Exception | grep ERROR | wc -l`
+      fatserver=`grep ' FATAL ' $slog 2>&1 | wc -l`
+   fi
+
+   eixboot="0"
+   dexboot="0"
+   dewboot="0"
+   ideboot="0"
+   cnfboot="0"
+   subboot="0"
+   falboot="0"
+   fatboot="0"
+   if [ "$blog" != "" ]; then
+      eixboot=`grep ExceptionInInitializerError $blog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+      dexboot=`grep DeploymentException $blog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      dewboot=`grep DeploymentException $blog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      ideboot=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+      cnfboot=`grep ^java.lang.ClassNotFoundException: $blog 2>&1 | grep Exception | wc -l`
+      subboot=`grep DeploymentUnitProcessingException $blog 2>&1 | grep Exception | grep ERROR | wc -l`
+      falboot=`grep 'Failed to start service jboss' $blog 2>&1 | grep Exception | grep ERROR | wc -l`
+      fatboot=`grep ' FATAL ' $blog 2>&1 | wc -l`
+   fi
+
+   eixcvm="0"
+   dexcvm="0"
+   dewcvm="0"
+   idecvm="0"
+   cnfcvm="0"
+   subcvm="0"
+   falcvm="0"
+   if [ "$clog" != "" ]; then
+      eixcvm=`grep ExceptionInInitializerError $clog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+      dexcvm=`grep DeploymentException $clog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      dewcvm=`grep DeploymentException $clog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      idecvm=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+      cnfcvm=`grep ^java.lang.ClassNotFoundException: $clog 2>&1 | grep Exception | wc -l`
+      subcvm=`grep DeploymentUnitProcessingException $clog 2>&1 | grep Exception | grep ERROR | wc -l`
+      falcvm=`grep 'Failed to start service jboss' $clog 2>&1 | grep Exception | grep ERROR | wc -l`
+   fi
+
+   eixcox="0"
+   dexcox="0"
+   dewcox="0"
+   idecox="0"
+   cnfcox="0"
+   subcox="0"
+   falcox="0"
+   if [ "$xlog" != "" ]; then
+      eixcox=`grep ExceptionInInitializerError $xlog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+      dexcox=`grep DeploymentException $xlog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      dewcox=`grep DeploymentException $xlog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      idecox=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+      cnfcox=`grep ^java.lang.ClassNotFoundException: $xlog 2>&1 | grep Exception | wc -l`
+      subcox=`grep DeploymentUnitProcessingException $xlog 2>&1 | grep Exception | grep ERROR | wc -l`
+      falcox=`grep 'Failed to start service jboss' $xlog 2>&1 | grep Exception | grep ERROR | wc -l`
+   fi
+
+   if [ "$dexserver" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $slog for details (look for DeploymentException in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$dewserver" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $slog for details (look for DeploymentException in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$ideserver" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $slog for details (look for IncompleteDeploymentException in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$cnfserver" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $slog for details (look for ClassNotFoundException in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$eixserver" -gt 0 ]; then
+      echo "ERROR: JBoss had some problems starting; check $slog for details (look for ExceptionInInitializerError in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$subserver" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $slog for details (look for 'DeploymentUnitProcessingException' in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$falserver" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $slog for details (look for 'Failed to start service jboss' in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$fatserver" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $slog for details (look for 'FAT' in $slog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$dexboot" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $blog for details (look for DeploymentException in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$dewboot" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $blog for details (look for DeploymentException in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$ideboot" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $blog for details (look for IncompleteDeploymentException in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$cnfboot" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $blog for details (look for ClassNotFoundException in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$eixboot" -gt 0 ]; then
+      echo "ERROR: JBoss had some problems starting; check $blog for details (look for ExceptionInInitializerError in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$subboot" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $blog for details (look for 'DeploymentUnitProcessingException' in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$falboot" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $blog for details (look for 'Failed to start service jboss' in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$fatboot" -gt 0 ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $blog for details (look for ' FATAL ' in $blog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+
+   elif [ "$dexcvm" -gt "$prevdexcvm" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $clog for details (look for DeploymentException in $clog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$dewcvm" -gt "$prevdewcvm" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $clog for details (look for DeploymentException in $clog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$idecvm" -gt "$previdecvm" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $clog for details (look for IncompleteDeploymentException in $clog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$cnfcvm" -gt "$prevcnfcvm" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $clog for details (look for ClassNotFoundException in $clog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$eixcvm" -gt "$preveixcvm" ]; then
+      echo "ERROR: JBoss had some problems starting; check $clog for details (look for ExceptionInInitializerError in $clog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$subcvm" -gt "$prevsubcvm" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $clog for details (look for 'DeploymentUnitProcessingException' in $clog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$falcvm" -gt "$prevfalcvm" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $clog for details (look for 'Failed to start service jboss' in $clog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$dexcox" -gt "$prevdexcox" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $xlog for details (look for DeploymentException in $xlog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$dewcox" -gt "$prevdewcox" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $xlog for details (look for DeploymentException in $xlog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$idecox" -gt "$previdecox" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $xlog for details (look for IncompleteDeploymentException in $xlog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$cnfcox" -gt "$prevcnfcox" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $xlog for details (look for ClassNotFoundException in $xlog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$eixcox" -gt "$preveixcox" ]; then
+      echo "ERROR: JBoss had some problems starting; check $xlog for details (look for ExceptionInInitializerError in $xlog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$subcox" -gt "$prevsubcox" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $xlog for details (look for 'DeploymentUnitProcessingException' in $xlog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ "$falcox" -gt "$prevfalcox" ]; then
+      echo "ERROR: JBoss did not start at least one deployment; check $xlog for details (look for 'Failed to start service jboss' in $xlog)"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   fi
+
+   return 0;
+}
+
+###
+# Verify that JBoss was started
+###
+verify()
+{
+   if [ "$ABASE" != "" -a -d "$ABASE" ]; then
+      /etc/init.d/apache restart
+   else
+      echo "`date`: Starting validation of JBoss"
+   fi
+
+   ###
+   # Get the version.txt file (done for everybody)
+   ###
+   VURL="http://127.0.0.1:8080/version.txt"
+   if [ -f /tmp/validation.txt ]; then
+      /bin/rm -f /tmp/validation.txt > /dev/null 2>&1
+   fi
+
+   echo "`date`: Validating $VURL"
+   $WGET -qO /tmp/validation.txt --timeout=15 --connect-timeout=15 --read-timeout=15 --max-redirect=0 --tries=2 "$VURL"
+   success="$?"
+   if [ "$success" != "0" ]; then
+      $WGET -qO /tmp/validation.txt --timeout=15 --connect-timeout=15 --read-timeout=15 --max-redirect=0 --tries=2 "$VURL"
+      success="$?"
+   fi
+
+   if [ "$success" != "0" ]; then
+      echo "ERROR: Cannot successfully download $VURL"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   elif [ -f /tmp/validation.txt ]; then
+      diff="`diff $ROOTWAR/version.txt /tmp/validation.txt | wc -l`"
+      if [ "$diff" == "0" ]; then
+         echo "   ... Downloaded $VURL correctly"
+         /bin/rm -f /tmp/validation.txt > /dev/null 2>&1
+      else
+         echo "ERROR: Unable to download $VURL"
+         /bin/rm -f /tmp/validation.txt > /dev/null 2>&1
+         if [ "$DIE" == "false" ]; then
+            return 1;
+         else
+            $PROGRAM stop
+            exit 1;
+         fi
+      fi
+   else
+      echo "ERROR: Cannot download $VURL"
+      if [ "$DIE" == "false" ]; then
+         return 1;
+      else
+         $PROGRAM stop
+         exit 1;
+      fi
+   fi
+
+   ###
+   # Get the /admin/Health.html (may not exist)
+   ###
+   if [ "$VERIFY1" != "" ]; then
+      dir1=`dirname $VERIFY1`
+      name1=`basename $VERIFY1`
+      if [ -d $dir1 ]; then
+         files1=`find $dir1 -name "$name1" -type f -print`
+         if [ "$files1" != "" ]; then
+            HURL="http://127.0.0.1:8080/admin/Health.html"
+            if [ -f /tmp/validation.txt ]; then
+               /bin/rm -f /tmp/validation.txt > /dev/null 2>&1
+            fi
+
+            echo "`date`: Validating $HURL"
+            $WGET -qO /tmp/validation.txt --timeout=15 --connect-timeout=15 --read-timeout=15 --max-redirect=0 --tries=2 "$HURL"
+            if [ "$?" != "0" ]; then
+               echo "ERROR: Cannot successfully download $HURL"
+               if [ "$DIE" == "false" ]; then
+                  return 1;
+               else
+                  $PROGRAM stop
+                  exit 1;
+               fi
+            elif [ -f /tmp/validation.txt ]; then
+               echo "   ... Downloaded $HURL correctly"
+               /bin/rm -f /tmp/validation.txt > /dev/null 2>&1
+            else
+               echo "ERROR: Cannot download $HURL"
+               if [ "$DIE" == "false" ]; then
+                  return 1;
+               else
+                  $PROGRAM stop
+                  exit 1;
+               fi
+            fi
+         fi
+      fi
+   fi
+
+   ###
+   # Get the /cvmrec/version
+   ###
+   if [ "$VERIFY2" != "" ]; then
+      dir2=`dirname $VERIFY2`
+      name2=`basename $VERIFY2`
+      if [ -d $dir2 ]; then
+         files2=`find $dir2 -name "$name2" -type f -print`
+         if [ "$files2" != "" ]; then
+            RURL="http://127.0.0.1:8080/cvmrec/version"
+            if [ -f /tmp/validation.txt ]; then
+               /bin/rm -f /tmp/validation.txt > /dev/null 2>&1
+            fi
+
+            echo "`date`: Validating $RURL"
+            $WGET -qO /tmp/validation.txt --timeout=15 --connect-timeout=15 --read-timeout=15 --max-redirect=0 --tries=2 "$RURL"
+            if [ "$?" != "0" ]; then
+               echo "ERROR: Cannot successfully download $RURL"
+               if [ "$DIE" == "false" ]; then
+                  return 1;
+               else
+                  $PROGRAM stop
+                  exit 1;
+               fi
+            elif [ -f /tmp/validation.txt ]; then
+               echo "   ... Downloaded $RURL correctly"
+               /bin/rm -f /tmp/validation.txt > /dev/null 2>&1
+            else
+               echo "ERROR: Cannot download $RURL"
+               if [ "$DIE" == "false" ]; then
+                  return 1;
+               else
+                  $PROGRAM stop
+                  exit 1;
+               fi
+            fi
+         fi
+      fi
+   fi
+
+   echo "`date`: Sanity checks passed"
+   return 0;
+}
+
+
+###
+# Procedure to cleanup old log files
+###
+cleanup()
+{
+   length="14"
+   if [ "$1" != "" ]; then
+      length="$1"
+   fi
+
+   translength="5"
+   if [ "$2" != "" ]; then
+      translength="$2"
+   fi
+
+   echo "`date`: Searching for old log files in ${LOGHOME}"
+
+   # remove all files over +X days old
+   if [ -d $LOGHOME ]; then
+      logs1=`find "$LOGHOME" -type f -atime "+${length}" -print`
+      logs2=`find "$LOGHOME" -type f -mtime "+${length}" -print`
+      if [ "`echo $logs1 $logs2`" != "" ]; then
+         for l in `echo $logs1 $logs2 | sort -u`; do
+            echo "   ... Removing $l"
+            $RM -f $l > /dev/null 2>&1
+         done
+      fi
+   fi
+
+   # remove empty files, but only if they are 1+ days old
+   if [ -d $LOGHOME ]; then
+      logs=`find "$LOGHOME" -type f -mtime "+1" -print`
+      if [ "`echo $logs`" != "" ]; then
+         for l in `echo $logs | sort -u`; do
+            size="`du -b $l | grep -v total | sed -e 's/total//g' | sed -e 's/\t/ /g' | cut -d' ' -f1`"
+            maxempty="1"
+            if [ "$size" -lt "$maxempty" ]; then
+               echo "   ... Removing empty file $l"
+               $RM -f $l > /dev/null 2>&1
+            fi
+         done
+      fi
+   fi
+
+   # remove empty GZ files, but only if they 20 bytes
+   if [ -d $LOGHOME ]; then
+      logs=`find "$LOGHOME" -type f -print`
+      if [ "`echo $logs`" != "" ]; then
+         for l in `echo $logs | sort -u`; do
+            size="`du -b $l | grep -v total | sed -e 's/total//g' | sed -e 's/\t/ /g' | cut -d' ' -f1`"
+            maxempty="128"
+            if [ "$size" -lt "$maxempty" ]; then
+               if [ "`echo $l | grep -c '.gz$'`" == 1 ]; then
+                  echo "   ... Removing empty zip file $l"
+                  $RM -f $l > /dev/null 2>&1
+               fi
+            fi
+         done
+      fi
+   fi
+
+   # remove all files over +X days old, in transactions subdir
+   if [ -d $LOGHOME/transactions ]; then
+      logs1=`find "$LOGHOME/transactions" -type f -atime "+${translength}" -print`
+      logs2=`find "$LOGHOME/transactions" -type f -mtime "+${translength}" -print`
+      if [ "`echo $logs1 $logs2`" != "" ]; then
+         for l in `echo $logs1 $logs2 | sort -u`; do
+            echo "   ... Removing $l"
+            $RM -f $l > /dev/null 2>&1
+         done
+      fi
+
+      offset=$(( $length * 24 * 60 * 60 ))
+      cutoff=`date +%s`
+      cutoff=$(( $cutoff - $offset ))
+      logs1=`find "$LOGHOME/transactions" -type f | grep '.log$'`
+      if [ "`echo $logs1`" != "" ]; then
+         for l in `echo $logs1 | sort -u`; do
+            dt=`basename $l | cut -d'-' -f2-4 | cut -d'.' -f1-1`
+            hr=`basename $l | cut -d'-' -f5-5 | cut -d'.' -f1-1`
+            ts=`date "+%s" -d "${dt} ${hr}:00:00"`
+            if [ "$ts" != "" -a "$cutoff" -gt "$ts" ]; then
+               echo "   ... Removing old log file $l"
+               $RM -f $l > /dev/null 2>&1
+            fi
+         done
+      fi
+   fi 
+
+   # remove old installation backups, to avoid having too many
+#   if [ -d /var/tmp/release ]; then
+#      logs1=`find "/var/tmp/release" -type f -atime "+${length}" -print | grep -v version.txt`
+#      logs2=`find "/var/tmp/release" -type f -mtime "+${length}" -print | grep -v version.txt`
+#      if [ "`echo $logs1 $logs2`" != "" ]; then
+#         for l in `echo $logs1 $logs2 | sort -u`; do
+#            echo "   ... Removing installation: $l"
+#            $RM -f $l > /dev/null 2>&1
+#         done
+#      fi
+#   fi
+
+   ###
+   # Cleanup old rollback extensions
+   ###
+   read-current-version
+   if [ "${VERSION}" != "" ]; then
+      echo "`date`: Searching for old rollback files in $ROOT"
+      files=""
+      for ff in `find $ROOT -type f -print`; do
+         if [ "`echo $ff | grep -c .${VERSION}\$`" == "1" ]; then
+            f=`echo $ff | sed -e "s/.${VERSION}\$//g"`
+            files="`echo $files $f`"
+         fi
+      done
+      echo "`date`: Searching for old rollback files in /etc"
+      for ff in `find /etc -type f -print`; do
+         if [ "`echo $ff | grep -c .${VERSION}\$`" == "1" ]; then
+            f=`echo $ff | sed -e "s/.${VERSION}\$//g"`
+            files="`echo $files $f`"
+         fi
+      done
+
+      if [ "$files" != "" ]; then
+         for f in `echo $files | sort -u`; do
+            d=`dirname $f`
+            b=`basename $f`
+            all=`find ${d} -name "${b}.*" -mtime +183 -print`
+            if [ "$all" != "" ]; then
+               for a in `echo $all`; do
+                  echo "   ... Cleaning up old rollback file: $a"
+                  $RM -f $a > /dev/null 2>&1
+               done
+            fi
+         done
+      fi
+   fi
+}
+
+###
+# Procedure that will use jstack to create a thread dump
+#   - twiddle can be used, but may not get a response
+###
+dump()
+{
+   pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   if [ "$pid" != "" -a -d "$JREHOME/bin" -a -f "$JREHOME/bin/jstack" ]; then
+      f="$LOGHOME/jstack-`hostname`-`date +%Y-%m-%d-%H-%M-%S`.txt"
+      echo "   ... starting jstack on $pid ($f)"
+      $JREHOME/bin/jstack -J-d64 -F $pid > $f 2>&1 &
+      echo "      ... waiting for 30s"
+      sleep 30
+   fi
+}
+
+jmap()
+{
+   pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   if [ "$pid" != "" -a -d "$JREHOME/bin" -a -f "$JREHOME/bin/jmap" ]; then
+      if [ "$LIVE" == "true" ]; then
+         f="$LOGHOME/jmap-live-`hostname`-`date +%Y-%m-%d-%H-%M-%S`.txt"
+         echo "   ... starting live jmap on $pid ($f)"
+         $JREHOME/bin/jmap -J-d64 -F -histo:live $pid > ${f}
+      elif [ "$HISTO" == "true" ]; then
+         f="$LOGHOME/jmap-histo-`hostname`-`date +%Y-%m-%d-%H-%M-%S`.txt"
+         echo "   ... starting histo jmap on $pid ($f)"
+         $JREHOME/bin/jmap -J-d64 -F -histo $pid > ${f}
+      else
+         f="$LOGHOME/jmap-full-`hostname`-`date +%Y-%m-%d-%H-%M-%S`.hprof"
+         echo "   ... starting jmap on $pid ($f)"
+         $JREHOME/bin/jmap -J-d64 -dump:format=b,file=${f} -F $pid
+      fi
+   fi
+}
+
+###
+# Procedure that will shutdown the running jboss instance
+#   - try to kill using twiddle.sh
+#   - try to kill using JNDI
+#   - kill with a SIGTERM (-15)
+#   - kill with a SIGHUP (-1)
+#   - kill with a SIGKILL (-9)
+###
+stopme()
+{
+   pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   if [ "$pid" != "" ]; then
+      close-vip
+      echo "`date`: Stopping $JSERVER (PID: $pid)"
+   fi
+
+   if [ "$pid" != "" -a "$NOW" == "false" ]; then
+      # make twiddle executable, if exists
+      if [ -e $ROOT/bin/twiddle.sh ]; then
+         chmod 755 $ROOT/bin/twiddle.sh > /dev/null 2>&1
+      fi
+
+      # execute any known stop scripts
+      if [ -x $ROOT/bin/twiddle.sh ]; then
+         echo "   ... stopping scheduler using twiddle"
+         $CMDPREFIX "nohup $ROOT/bin/twiddle.sh --server=`hostname -i`:1099 invoke 'com.cox.dcrm.dvr.scheduler:service=DVRAsyncSweeperScheduler' stopSchedule true > $LOGHOME/scheduler.log 2>&1 &" > /dev/null 2>&1 &
+         echo "      ... waiting for up to 20s"
+         sleep 10
+         pid=`$PS -aef | $GREP twiddle.sh | $GREP -v grep | $GREP invoke | cut -c9-15`
+         if [ "$pid" != "" ]; then
+            sleep 10
+            pid=`$PS -aef | $GREP twiddle.sh | $GREP -v grep | $GREP invoke | cut -c9-15`
+            if [ "$pid" != "" ]; then
+               for p in `echo $pid`; do
+                  $KILL -9 $pid > /dev/null 2>&1
+               done
+            fi
+         fi
+      fi
+
+      # get a thread dump
+      dump
+
+      # try to stop the server with twiddle
+      pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+      if [ -x $ROOT/bin/twiddle.sh ]; then
+         if [ "$pid" != "" ]; then
+            echo "   ... stopping server using twiddle"
+            $CMDPREFIX "nohup $ROOT/bin/twiddle.sh --server=`hostname -i`:1099 invoke jboss.system:type=Server shutdown >> $LOGHOME/scheduler.log 2>&1 &" > /dev/null 2>&1 &
+            echo "      ... waiting for up to 20s"
+            sleep 10
+            pid=`$PS -aef | $GREP twiddle.sh | $GREP -v grep | $GREP invoke | cut -c9-15`
+            if [ "$pid" != "" ]; then
+               sleep 10
+               pid=`$PS -aef | $GREP twiddle.sh | $GREP -v grep | $GREP invoke | cut -c9-15`
+               if [ "$pid" != "" ]; then
+                  for p in `echo $pid`; do
+                     $KILL -9 $pid > /dev/null 2>&1
+                  done
+               fi
+            fi
+         fi
+      fi
+
+      # stop using jndi
+      pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+      if [ "$pid" != "" ]; then
+         echo "   ... stopping server using JNDI port: $JNDIPORT"
+         $CMDPREFIX "nohup $JREHOME/bin/java -classpath $JBOSSCP org.jboss.Shutdown -s jnp://`hostname -i`:$JNDIPORT --shutdown &" > /dev/null 2>&1 &
+         echo "      ... waiting for up to 20s"
+         sleep 10
+         pid=`$PS -aef | $GREP javah | $GREP -v grep | $GREP jnp: | cut -c9-15`
+         if [ "$pid" != "" ]; then
+            sleep 10
+            pid=`$PS -aef | $GREP java | $GREP -v grep | $GREP jnp: | cut -c9-15`
+            if [ "$pid" != "" ]; then
+               for p in `echo $pid`; do
+                  $KILL -9 $pid > /dev/null 2>&1
+               done
+            fi
+         fi
+      fi
+      pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   fi
+
+   if [ "$pid" != "" -a "$NOW" == "false" ]; then
+      # stop using kill
+      pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+      if [ "$pid" != "" ]; then
+         for SIGNAL in `echo 15 1 9`; do
+            pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+            if [ "$pid" != "" ]; then
+               # kill all found processes
+               for p in `echo $pid`; do
+                  tmppid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15 | grep $p`
+                  if  [ "$tmppid" != "" ]; then
+                     echo "   ... stopping process (SIGNAL $SIGNAL): $p"
+                     $KILL -$SIGNAL $p
+                     echo "      ... waiting for up to 20s"
+                     sleep 5
+                     if [ "`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`" != "" ]; then
+                        sleep 5
+                     fi
+                     if [ "`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`" != "" ]; then
+                        sleep 5
+                     fi
+                     if [ "`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`" != "" ]; then
+                        sleep 5
+                     fi
+                  fi
+               done
+            fi
+         done
+      fi
+   elif [ "$pid" != "" -a "$NOW" == "true" ]; then
+      # stop using kill
+      pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+      if [ "$pid" != "" ]; then
+         for SIGNAL in `echo 9`; do
+            pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+            if [ "$pid" != "" ]; then
+               # kill all found processes
+               for p in `echo $pid`; do
+                  tmppid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15 | grep $p`
+                  if  [ "$tmppid" != "" ]; then
+                     echo "   ... stopping process (SIGNAL $SIGNAL): $p"
+                     $KILL -$SIGNAL $p
+                     echo "      ... waiting for up to 20s"
+                     sleep 5
+                     if [ "`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`" != "" ]; then
+                        sleep 5
+                     fi
+                     if [ "`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`" != "" ]; then
+                        sleep 5
+                     fi
+                     if [ "`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`" != "" ]; then
+                        sleep 5
+                     fi
+                  fi
+               done
+            fi
+         done
+      fi
+   fi
+
+   # one last check
+   pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   if [ "$pid" == "" ]; then
+      echo "   ... $JSERVER no longer running"
+      if [ -d $LOGHOME ]; then
+         logs1=`find "$LOGHOME" -type f -atime "+60" -print`
+         logs2=`find "$LOGHOME" -type f -mtime "+60" -print`
+         for l in `echo $logs1 $logs2 | sort -u`; do
+            echo "      ... Removing old file: $l ..."
+            $RM -f $l > /dev/null 2>&1
+         done
+      fi
+   else
+      echo "   ERROR: $JSERVER did not stop!"
+   fi
+}
+
+###
+# Procedure that will show the usage
+###
+usage()
+{
+   echo "USAGE: $proc {start|stop|restart|details|status|dump|jstack|jmap|cleanup|help}"
+   echo "OPTIONS:"
+   echo "   -now"
+   echo "       (with stop or restart) will force JBoss to quit"
+   echo "   -force"
+   echo "       (with start or restart) will force JBoss to stay running even with error"
+   echo "   -clean"
+   echo "       (with start or restart) will clean the application logs"
+}
+
+###
+# Logic to perform startup
+###
+startme()
+{
+   slog=""
+   blog=""
+   clog=""
+   xlog=""
+
+   # check for a running process
+   pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   if [ "$pid" != "" ]; then
+      echo "$proc is running (pid $pid)"
+      exit 1
+   else
+      close-vip
+      echo "`date`| Starting $JSERVER ($ROOT)"
+   fi
+
+   # check for missing configurations
+#   if [ -d $JSERVERHOME/configuration ]; then
+#      fxml=`find $JSERVERHOME/configuration -name cox-config.xml`
+#      pxml=`find $JSERVERHOME/configuration -name "*.properties"`
+
+   if [ -d $APPHOME/configuration ]; then
+      fxml=`find $APPHOME/configuration -name cox-config.xml`
+#      pxml=`find $APPHOME/configuration \( -name "*.properties" ! -name "logging.properties" \)`
+      pxml=`find $APPHOME/configuration -name "*.properties"`
+      files=`echo $fxml $pxml`
+      if [ "$files" != "" ]; then
+         missing="`grep '\${' $files | grep -v '{jboss\.' | grep -v '{com\.cox\.' | grep -c '}'`"
+         if [ "$missing" != "0" ]; then
+            echo "`date`| ERROR: There are missing configuration values"
+            grep "\${" $files | grep -v "{jboss\." | grep -v "{com\.cox\." | grep "}"
+            exit 1
+         fi
+      fi
+   fi
+
+   # remove tmp, work and data
+   echo "" > /tmp/j1
+   echo "" > /tmp/j2
+   echo "" > /tmp/j3
+   echo "" > /tmp/j4
+   echo "" > /tmp/j5
+   echo "" > /tmp/j6
+   echo "" > /tmp/j7
+   echo "" > /tmp/j8
+   echo "" > /tmp/j9
+   echo "" > /tmp/j10
+   find $JSERVERHOME -name tmp -type d > /tmp/j1 2> /dev/null
+   find $JSERVERHOME -name temp -type d > /tmp/j2 2> /dev/null
+   find $JSERVERHOME -name work -type d > /tmp/j3 2> /dev/null
+   find $JSERVERHOME -name data -type d > /tmp/j4 2> /dev/null
+#   if [ -d $JSERVERHOME/deployments ]; then
+#      find $JSERVERHOME/deployments | grep "\.failed$" > /tmp/j5 2> /dev/null
+#      find $JSERVERHOME/deployments | grep "\.isdeploying$" > /tmp/j6 2> /dev/null
+#      find $JSERVERHOME/deployments | grep "\.deployed$" > /tmp/j7 2> /dev/null
+#      find $JSERVERHOME/deployments | grep "\.pending$" > /tmp/j8 2> /dev/null
+#      find $JSERVERHOME/deployments | grep "\.dodeploy$" > /tmp/j9 2> /dev/null
+#      find $JSERVERHOME/deployments | grep "\.undeployed$" > /tmp/j10 2> /dev/null
+#   fi
+
+   if [ -d $APPHOME/deployments ]; then
+      find $APPHOME/deployments | grep "\.failed$" > /tmp/j5 2> /dev/null
+      find $APPHOME/deployments | grep "\.isdeploying$" > /tmp/j6 2> /dev/null
+      find $APPHOME/deployments | grep "\.deployed$" > /tmp/j7 2> /dev/null
+      find $APPHOME/deployments | grep "\.pending$" > /tmp/j8 2> /dev/null
+      find $APPHOME/deployments | grep "\.dodeploy$" > /tmp/j9 2> /dev/null
+      find $APPHOME/deployments | grep "\.undeployed$" > /tmp/j10 2> /dev/null
+   fi
+   found1="`cat /tmp/j1 /tmp/j2 /tmp/j3 /tmp/j4`"
+   found2="`cat /tmp/j5 /tmp/j6 /tmp/j7 /tmp/j8 /tmp/j9 /tmp/j10`"
+   if [ "$found1" != "" ]; then
+      for d in `echo $found1`; do
+         echo "   ... cleaning `basename $d`"
+         $RM -rf $d > /dev/null 2>&1
+      done
+   fi
+   if [ "$found2" != "" ]; then
+      for d in `echo $found2`; do
+         echo "   ... cleaning `basename $d`"
+         $RM -rf $d > /dev/null 2>&1
+      done
+   fi
+
+   # if -clean, then remove files under log
+   if [ "$CLEAN" == "true" ]; then
+      echo "   ... cleaning all logs $LOGHOME"
+#     lfiles=`find $JSERVERHOME/log -type f`
+      lfiles=`find $LOGHOME -type f`
+      if [ "$lfiles" != "" ]; then
+         for log in `echo $lfiles`; do
+            $RM -f $log > /dev/null 2>&1
+         done
+      fi
+   fi
+
+   # make the tmp directory
+   mkdir -p $JSERVERHOME/tmp > /dev/null 2>&1
+   chmod 755 jboss:jboss $JSERVERHOME/tmp > /dev/null 2>&1
+   chown -R jboss:jboss $JSERVERHOME/tmp > /dev/null 2>&1
+
+   $RM -rf /tmp/j1 /tmp/j2 /tmp/j3 /tmp/j4 /tmp/j5 /tmp/j6 /tmp/j7 /tmp/j8 /tmp/j9 /tmp/j10 > /dev/null 2>&1
+
+   # add dodeploy
+#   if [ -d $JSERVERHOME/deployments ]; then
+#      wars1=`find $JSERVERHOME/deployments -type f | grep ".war$" | grep -v META-INF`
+#      wars2=`find $JSERVERHOME/deployments -type d | grep "version.war$" | grep -v META-INF`
+#      wars3=`find $JSERVERHOME/deployments -type d | grep "activemq.rar$" | grep -v META-INF`
+#      wars4=`find $JSERVERHOME/deployments -type d | grep "adminui" | grep "war$" | grep -v META-INF`
+#      wars5=`find $JSERVERHOME/deployments -type d | grep "csl_admin_ui.war$" | grep -v META-INF`
+#      ears1=`find $JSERVERHOME/deployments -type f | grep ".ear$" | grep -v META-INF`
+
+    if [ -d $APPHOME/deployments ]; then
+      wars1=`find $APPHOME/deployments -type f | grep ".war$" | grep -v META-INF`
+      wars2=`find $APPHOME/deployments -type d | grep "version.war$" | grep -v META-INF`
+      wars3=`find $APPHOME/deployments -type d | grep "activemq.rar$" | grep -v META-INF`
+      wars4=`find $APPHOME/deployments -type d | grep "adminui" | grep "war$" | grep -v META-INF`
+      wars5=`find $APPHOME/deployments -type d | grep "csl_admin_ui.war$" | grep -v META-INF`
+      ears1=`find $APPHOME/deployments -type f | grep ".ear$" | grep -v META-INF`
+      ars=`echo $wars1 $wars2 $wars3 $wars4 $wars5 $ears1`
+      if [ "$ars" != "" ]; then
+         for a in `echo $ars`; do
+            echo "   ... adding `basename ${a}.dodeploy`"
+            touch ${a}.dodeploy
+            chown jboss:jboss ${a}.dodeploy
+         done
+      fi
+   fi
+
+   ###
+   # Get the previous count, before we start
+   #  - find log files
+   #  - empty binary files since that messes up grep
+   #  - create files that are missing
+   ###
+   if [ -d $LOGHOME ]; then
+      slog=`find $LOGHOME -name "*server.log"`
+      if [ "$slog" == "" ]; then
+         slog="$LOGHOME/`hostname`-server.log"
+         touch $slog > /dev/null 2>&1
+         chown jboss:jboss $slog > /dev/null 2>&1
+      fi
+      blog=`find $LOGHOME -name "*boot.log"`
+      if [ "$blog" == "" ]; then
+         blog="$LOGHOME/`hostname`-boot.log"
+         touch $blog > /dev/null 2>&1
+         chown jboss:jboss $blog > /dev/null 2>&1
+      fi
+      clog=`find $LOGHOME -name "*{{ APP_LOG_NAME }}"`
+      if [ "$clog" == "" ]; then
+         clog="$LOGHOME/`hostname`-{{ APP_LOG_NAME }}"
+         touch $clog > /dev/null 2>&1
+         chown jboss:jboss $clog > /dev/null 2>&1
+      fi
+      xlog=`find $LOGHOME -name "*cox.log"`
+      if [ "$xlog" == "" ]; then
+         xlog="$LOGHOME/`hostname`-cox.log"
+         touch $xlog > /dev/null 2>&1
+         chown jboss:jboss $xlog > /dev/null 2>&1
+      fi
+   else
+      slog="$LOGHOME/server.log"
+      blog="$LOGHOME/boot.log"
+      clog="$LOGHOME/`hostname`-{{ APP_LOG_NAME }}"
+      xlog="$LOGHOME/`hostname`-cox.log"
+
+      mkdir -p $LOGHOME > /dev/null 2>&1
+      touch $slog $blog $clog $xlog > /dev/null 2>&1
+      chown -R jboss:jboss $LOGHOME > /dev/null 2>&1
+   fi
+
+   if [ "$slog" != "" -o "$blog" != "" ]; then
+      for l in `echo $slog $blog`; do
+         echo "" > $l
+         chown jboss:jboss $l > /dev/null 2>&1
+#         b="`grep '] Started in ' $l 2>&1 | grep -ci 'Binary File'`"
+#         if [ -d $ROOT/server ]; then
+#            b="`grep "] Started in " $l 2>&1 | grep -ci 'Binary File'`"
+#         else
+#            b="`grep ") started in " $l 2>&1 | grep -ci 'Binary File'`"
+#         fi
+#         if [ "$b" -gt "0" ]; then
+#            echo "" > $l
+#            chown jboss:jboss $l > /dev/null 2>&1
+#         fi
+      done
+   fi
+
+   if [ "$clog" != "" -o "$xlog" != "" ]; then
+      if [ -d $ROOT/server ]; then
+         previous=`grep "] Started in " $blog $slog 2>&1 | grep "SVNTag=" | wc -l`
+      else
+         previous=`grep ") started " $blog $slog 2>&1 | grep " JBoss EAP " | grep " Started " | wc -l`
+      fi
+   else
+      previous="0"
+   fi
+
+   ###
+   # Make sure the ROOT.war/version.txt file is available
+   ###
+#   if [ -f /var/tmp/release/version.txt ]; then
+#      cp -f /var/tmp/release/version.txt $ROOTWAR
+#   else
+#      echo "unknown" > $ROOTWAR/version.txt
+#   fi
+#   chmod 644 $ROOTWAR/version.txt > /dev/null 2>&1
+#   chown jboss:jboss $ROOTWAR/version.txt > /dev/null 2>&1
+#   touch $ROOTWAR > /dev/null 2>&1
+
+   ###
+   # Remove tmp and work directories
+   ###
+   find $JSERVERHOME -name tmp -type d > /tmp/j1 2> /dev/null
+   find $JSERVERHOME -name temp -type d > /tmp/j2 2> /dev/null
+   find $JSERVERHOME -name work -type d > /tmp/j3 2> /dev/null
+   find $JSERVERHOME -name data -type d > /tmp/j4 2> /dev/null
+   found1="`cat /tmp/j1 /tmp/j2 /tmp/j3 /tmp/j4`"
+   if [ "$found1" != "" ]; then
+      for d in `echo $found1`; do
+         echo "   ... cleaning `basename $d`"
+         $RM -rf $d > /dev/null 2>&1
+      done
+   fi
+   $RM -rf /tmp/j1 /tmp/j2 /tmp/j3 /tmp/j4 > /dev/null 2>&1
+
+   ###
+   # Determine the output location
+   ###
+   OUTPUT="/dev/null"
+   if [ "$DEBUG" == "true" ]; then
+      OUTPUT="$LOGHOME/jboss-start-output.log"
+   fi
+
+   ###
+   # Change the start time
+   ###
+   if [ -d ${ROOTWAR} ]; then
+      touch ${ROOTWAR}/started.txt > /dev/null 2>&1
+   fi
+
+   ###
+   # Get the current values
+   ###
+   eixcvm="0"
+   dexcvm="0"
+   dewcvm="0"
+   idecvm="0"
+   cnfcvm="0"
+   subcvm="0"
+   falcvm="0"
+   if [ "$clog" != "" ]; then
+      eixcvm=`grep ExceptionInInitializerError $clog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+      dexcvm=`grep DeploymentException $clog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      dewcvm=`grep DeploymentException $clog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      idecvm=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+      cnfcvm=`grep ^java.lang.ClassNotFoundException: $clog 2>&1 | grep Exception | wc -l`
+      subcvm=`grep DeploymentUnitProcessingException $clog 2>&1 | grep Exception | grep ERROR | wc -l`
+      falcvm=`grep 'Failed to start service jboss' $clog 2>&1 | grep Exception | grep ERROR | wc -l`
+   fi
+
+   eixcox="0"
+   dexcox="0"
+   dewcox="0"
+   idecox="0"
+   cnfcox="0"
+   subcox="0"
+   falcox="0"
+   if [ "$xlog" != "" ]; then
+      eixcox=`grep ExceptionInInitializerError $xlog 2>&1 | grep Error | grep -v "loadClass(" | grep -v TRACE | grep -v "Error," | wc -l`
+      dexcox=`grep DeploymentException $xlog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep "URL file:" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      dewcox=`grep DeploymentException $xlog 2>&1 | grep Exception | grep ".war" | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | grep -vi "Error while checking if table aleady" | wc -l`
+      idecox=`grep client.spi.IncompleteDeploymentException $slog 2>&1 | grep Exception | grep -v "loadClass(" | grep -v TRACE | grep -v "Exception," | wc -l`
+      cnfcox=`grep ^java.lang.ClassNotFoundException: $xlog 2>&1 | grep Exception | wc -l`
+      subcox=`grep DeploymentUnitProcessingException $xlog 2>&1 | grep Exception | grep ERROR | wc -l`
+      falcox=`grep 'Failed to start service jboss' $xlog 2>&1 | grep Exception | grep ERROR | wc -l`
+   fi
+
+   ###
+   # Start the process
+   #  - Always bind to 0.0.0.0, since apache is not taking inbound requests
+   ###
+   RUN_CONFIG="{{APP_SBIN_DIR}}/standalone.conf"
+   if [ -d $ROOT/server ]; then
+      RUN="$ROOT/bin/run.sh"
+      echo "   ... $CMDPREFIX \"nohup $RUN -b 0.0.0.0 -c $JSERVER -g `hostname` > $OUTPUT 2>&1 &\""
+      $CMDPREFIX "nohup $RUN -b 0.0.0.0 -c $JSERVER -g `hostname` > $OUTPUT 2>&1 &"
+   else
+     RUN="$ROOT/bin/${JSERVER}.sh"
+     echo "   ... $CMDPREFIX \"nohup $RUN -c cox-config.xml -b 0.0.0.0 -Djboss.server.config.dir='{{APP_JBOSS_CONFIGURATION_DIR}}' -Djboss.server.log.dir='{{INSTALL_LOG_JBOSS}}' > $OUTPUT 2>&1 &\""
+     $CMDPREFIX "export RUN_CONF=$RUN_CONFIG; nohup $RUN -c cox-config.xml -b 0.0.0.0 -Djboss.server.config.dir='{{APP_JBOSS_CONFIGURATION_DIR}}' -Djboss.server.log.dir='{{INSTALL_LOG_JBOSS}}' > $OUTPUT 2>&1 &"
+   fi
+   sleep 10
+   pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   if [ "$pid" == "" ]; then
+      sleep 10
+      pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+   fi
+
+   if [ "$pid" != "" ]; then
+      echo "   ... CURRENT ERROR COUNTS: $previous $eixcvm $dexcvm $dewcvm $idecvm $cnfcvm $subcvm $falcvm $eixcox $dexcox $dewcox $idecox $cnfcox $subcox $falcox"
+      wait "$previous" "$eixcvm" "$dexcvm" "$dewcvm" "$idecvm" "$cnfcvm" "$subcvm" "$falcvm" "$eixcox" "$dexcox" "$dewcox" "$idecox" "$cnfcox" "$subcox" "$falcox"
+
+      if [ "$?" == "0" ]; then
+         echo "`date`: Waiting 20 seconds to allow JBoss to initialize pools"
+         sleep 20
+         verify
+         if [ "$?" == "0" ]; then
+            echo "`date`: Startup validated: {{APP_NAME_IN_JBOSS_SCRIPT}} `cat $ROOTWAR/version.txt`"
+            $PROGRAM details
+            open-vip
+         elif [ "$DIE" == "false" ]; then
+            echo "WARNING: Startup failed; but -force is present so not stopping"
+            $PROGRAM details
+            open-vip
+         else
+            echo "ERROR: Startup failed; stopping server"
+            $PROGRAM stop
+            exit 1
+         fi
+      elif [ "$DIE" == "false" ]; then
+         echo "WARNING: Startup failed; but -force is present so not stopping"
+         $PROGRAM details
+         verify
+         if [ "$?" == "0" ]; then
+            echo "`date`: Startup validated: {{APP_NAME_IN_JBOSS_SCRIPT}} `cat $ROOTWAR/version.txt`"
+            $PROGRAM details
+            open-vip
+         elif [ "$DIE" == "false" ]; then
+            echo "WARNING: Startup failed; but -force is present so not stopping"
+            $PROGRAM details
+            open-vip
+         else
+            echo "ERROR: Startup failed; stopping server"
+            $PROGRAM stop
+            exit 1
+         fi
+      else
+         echo "ERROR: Startup failed; stopping server"
+         $PROGRAM stop
+         exit 1
+      fi
+   else
+      echo "ERROR: JBoss did not start; stopping server"
+      $PROGRAM stop
+      exit 1
+   fi
+}
+
+#################### start of adding extra functions  ####################
+JBOSS_EAP_SERVICE=jboss
+
+function echoerr() { 
+  echo "$@" 1>&2; 
+}
+
+function is_jboss_eap_running() {
+    pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+    if [ "$pid" == "" ]; then
+         return 0
+    else
+         return 1
+    fi 
+}
+
+###
+# functions for apply and check patch
+###
+function read_resource() {
+  echo
+  echo "****** READING RESOURCE ******"
+
+  {{INSTALL_JBOSS_SYMBOLIC_LINK_DEST}}/bin/jboss-cli.sh --connect ":read-resource"
+}
+
+function apply_patch() {
+  echo 
+  echo "****** APPLYING PATCH ******"
+  
+  local PATCH_FILE_LOCATION
+  
+  if [ "X$1" == "X" ]
+  then
+      echoerr "No patch name is provided [FAILED]"
+      exit 1
+  else
+      PATCH_FILE_LOCATION=$1    
+  fi  
+  
+  is_jboss_eap_running
+  IS_EAP_RUNNING=$?
+  if [ "$IS_EAP_RUNNING" -eq 0 ]
+  then
+      echoerr "Jboss EAP is not running [FAILED]"
+      exit 1
+  else 
+      echo "Jboss EAP is running [SUCCESS]"
+  fi 
+  
+  {{INSTALL_JBOSS_SYMBOLIC_LINK_DEST}}/bin/jboss-cli.sh --connect "patch apply $PATCH_FILE_LOCATION"
+  
+  if [ "X$2" == "X" -o "$2" == "-restart" ]
+  then
+      $PROGRAM restart 
+  fi  
+}
+
+###
+# Check if it is apply-patch command
+###
+if [ "$1" == "apply-patch" ]; then
+   apply_patch "$2" "$3"
+   exit 0
+fi
+
+
+
+###
+# functions for splunk log configuratio
+###
+function add_splunk_monitor_log() {
+  echo 
+  echo "****** Adding logs to Splunk monitor ******"
+  
+  local SOURCE_TYPE
+  local INDEX="{{SPLUNK_LOG_INDEX}}"
+  
+  if [ "X$2" == "X" ]
+  then 
+     echoerr "No logs to add"
+     exit 0
+  else
+    # Save the initial Interal Field Separator
+    OIFS="$IFS"
+   
+    # Set the IFS to a custom delimiter
+    IFS=','
+   
+    if [ "X$1" == "-jboss" ]
+    then
+       SOURCE_TYPE="{{JBOSS_LOG_SOURCE_TYPE}}"
+    elif [ "X$1" == "-apache" ]
+    then
+       SOURCE_TYPE="{{APACHE_LOG_SOURCE_TYPE}}"
+    else
+      #do nothing
+      :
+    fi
+
+    # converting string into array using comma delimiter
+    read -a ALOGS <<< "$2"
+   
+    # Reset original IFS
+    IFS="$OIFS"
+   
+    for i in "${ALOGS[@]}"
+    do
+        {{SPLUNK_SCRIPT_LOCATION}} add monitor $i -sourcetype '$SOURCE_TYPE' -index '$INDEX' -auth '{{SPLUNK_USERNAME}}:{{SPLUNK_PASSWORD}}'
+    done
+  fi
+}
+
+function remove_splunk_monitor_log() {
+  echo 
+  echo "****** Removing logs from Splunk monitor ******"
+  
+  if [ "X$1" == "X" ]
+  then 
+     echoerr "No logs to remove"
+     exit 0
+  else
+    # Save the initial Interal Field Separator
+    OIFS="$IFS"
+   
+    # Set the IFS to a custom delimiter
+    IFS=','
+   
+    # converting string into array using comma delimiter
+    read -a RLOGS <<< "$1"
+   
+    # Reset original IFS
+    IFS="$OIFS"
+   
+    for i in "${RLOGS[@]}"
+    do
+       {{SPLUNK_SCRIPT_LOCATION}} remove monitor $i -auth '{{SPLUNK_USERNAME}}:{{SPLUNK_PASSWORD}}'
+    done
+  fi
+}
+
+###
+# Check if it is splunk-monitor-log command and
+# redirect it to right function
+###
+if [ "$1" == "splunk-monitor-log" ]; then
+   if [ "$2" == "-add" ]; then
+      add_splunk_monitor_log "$3" "$4"
+   elif [ "$2" == "-remove" ]; then
+     remove_splunk_monitor_log "$3"
+   else
+     #do nothing
+     :
+   fi
+
+   exit 0
+fi
+
+
+###
+# Check command for version test
+###
+if [ "$1" == "version-test" ]; then
+   versionTest "$2"
+   exit 0
+fi
+
+#################### end of adding extra functions  ####################
+
+###
+# Check command
+###
+if [ "$1" == "cleanup" ]; then
+   cleanup "$2" "$3"
+   exit 0
+fi
+
+###
+# Handle the options
+###
+COMMAND="$1"
+shift
+
+export DIE="true"
+export NOW="false"
+export DEBUG="false"
+export CLEAN="false"
+export LIVE="false"
+while [ "$#" -gt "0" ]; do
+   if [ "$1" == "-force" ]; then
+      export DIE="false"
+   elif [ "$1" == "-now" ]; then
+      export NOW="true"
+   elif [ "$1" == "-debug" ]; then
+      export DEBUG="true"
+   elif [ "$1" == "-clean" ]; then
+      export CLEAN="true"
+   elif [ "$1" == "-live" ]; then
+      export LIVE="true"
+   elif [ "$1" == "-histo" ]; then
+      export HISTO="true"
+   fi
+   shift
+done
+
+###
+# Handle the arguments
+###
+case "$COMMAND" in
+   "details")
+      echo "JBoss install: $ROOT"
+      echo "JBoss server:  $JSERVER"
+      echo "java:          $JREHOME/bin/java"
+      echo ""
+      $JREHOME/bin/java -version
+      echo "==============================================================="
+      $PROGRAM status
+      ;;
+   "status")
+      pid=`$PS -aef | $GREP java | $GREP -v grep | $EGREP "$JSEARCH" | cut -c9-15`
+      if [ "$pid" == "" ]; then
+         echo "$proc is not running"
+      else
+         echo "$proc is running (pid $pid)"
+      fi
+      ;;
+   "stop")
+      if [ "$ABASE" != "" -a -d "$ABASE" ]; then
+         /etc/init.d/apache stop
+      fi
+      stopme
+      ;;
+   "start")
+      startme
+      ;;
+   "restart")
+      if [ "$ABASE" != "" -a -d "$ABASE" ]; then
+         /etc/init.d/apache stop
+      fi
+      stopme
+      startme
+      ;;
+   "dump"|"jstack")
+      dump
+      ;;
+   "jmap")
+      jmap
+      ;;
+   "validation")
+      validation
+      ;;             
+   "read-resource")
+      read_resource
+      ;;   
+   "end-to-end-test")
+      endToEndTest
+      ;;
+   "imprint-smoke-test")
+      imprintSmokeTest
+      ;;       
+   "help")
+      help
+      ;;
+   *)
+      help
+      exit 1
+      ;;
+esac
+
+exit 0

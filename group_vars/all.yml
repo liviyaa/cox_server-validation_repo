@@ -1,0 +1,147 @@
+---
+
+#Ansible master node
+ANSIBLE_MASTER_NODE: localhost
+
+#General installation details
+INSTALATION_LOCATION: /opt
+APP_NAME: server_validation
+APP_TEMP_DIR_LOCATION: /opt/ansible-playbooks/tmp/tmp_{{ APP_NAME }}
+EXTRACT_MODULES_DIR: jboss/modules
+
+#JDK installation details
+INSTALL_JDK_FILE_NAME: jdk-8u102-linux-x64.tar.gz
+#INSTALL_JDK_FILE_NAME: jdk-7u79-linux-x64.tar.gz 
+INSTALL_TEMP_JDK_LOCATION: "{{ INSTALL_TEMP_DIR_LOCATION }}/{{ INSTALL_JDK_FILE_NAME }}"
+INSTALL_JDK_LOCATION: /opt/infra/jdk1.8.0_121
+#INSTALL_JDK_LOCATION: /opt/jdk1.7.0_79
+INSTALL_JDK_SYMBOLIC_LINK_DEST: /opt/jdk
+JAVA_HOME: /opt/jdk
+JRE_LIB_LOCATION: "{{JAVA_HOME}}/jre/lib/ext"
+JAVA_SECURITY_FILE_LOCATION: "{{JAVA_HOME}}/jre/lib/security"
+JAVA_SECURITY_EDGFILE: /dev/urandom
+
+#JBoss installation details
+INSTALL_JBOSS_FILE_NAME: jboss-eap-6.4.0.zip
+#INSTALL_JBOSS_FILE_NAME: jboss-eap-6.1.1.zip
+INSTALL_TEMP_JBOSS_LOCATION: "{{ INSTALL_TEMP_DIR_LOCATION }}/{{INSTALL_JBOSS_FILE_NAME}}"
+INSTALL_JBOSS_LOCATION: /opt/infra/jboss-eap-6.4.8
+#INSTALL_JBOSS_LOCATION: /opt/jboss-eap-6.1
+INSTALL_JBOSS_SYMBOLIC_LINK_DEST: /opt/jboss-eap
+JBOSS_MODULES: "{{INSTALL_JBOSS_SYMBOLIC_LINK_DEST}}/modules"
+
+#Apache installation details
+INSTALL_APACHE_FLAG: true
+INSTALL_APACHE_FILE_NAME: apache-2.2.17-Linux-64bit.tar.gz
+INSTALL_TEMP_APACHE_LOCATION: "{{ INSTALL_TEMP_DIR_LOCATION }}/{{INSTALL_APACHE_FILE_NAME}}"
+#INSTALL_APACHE_LOCATION: /opt/apache-2.2.17
+INSTALL_APACHE_LOCATION: /opt/infra/apache-2.4.27
+INSTALL_APACHE_SYMBOLIC_LINK_DEST: /opt/apache
+INSTALL_HOME_APACHE_SYMBOLIC_LINK: /home/apache-2.2.17
+
+#Application directory structure details
+INSTALL_COX_DIR: /opt/cox
+APP_DIR: app
+CERT_DIR: cert
+DEPLOYMENTS_DIR: deployments
+MODULES_DIR: modules
+SBIN_DIR: sbin
+JBOSS_CONFIGURATION_DIR: configuration/jboss
+APACHE_CONFIGURATION_DIR: configuration/apache  
+SPLUNK_CONFIGURATION_DIR: configuration/splunk
+APP_HOME: "{{INSTALL_COX_DIR}}/{{APP_DIR}}"
+COMMON_PLAYBOOK_PATH: /opt/ansible-playbooks/common-playbook/
+VERSION_HEALTHCHECK_PATH: "{{COMMON_PLAYBOOK_PATH}}templates/version_healthcheck/"
+APP_DEPLOYMENTS_DIR: "{{APP_HOME}}/{{DEPLOYMENTS_DIR}}" 
+APP_JBOSS_CONFIGURATION_DIR: "{{APP_HOME}}/{{JBOSS_CONFIGURATION_DIR}}"
+APP_APACHE_CONFIGURATION_DIR: "{{APP_HOME}}/{{APACHE_CONFIGURATION_DIR}}"
+APP_SPLUNK_CONFIGURATION_DIR: "{{APP_HOME}}/{{SPLUNK_CONFIGURATION_DIR}}"
+APP_MODULES_DIR: "{{APP_HOME}}/{{MODULES_DIR}}"
+APP_SBIN_DIR: "{{APP_HOME}}/{{SBIN_DIR}}" 
+APP_CERT_DIR: "{{APP_HOME}}/{{CERT_DIR}}"
+APP_VERSION_WAR: "{{APP_DEPLOYMENTS_DIR}}/version.war/"
+
+#Application log directory structure details
+INSTALL_LOG: "{{INSTALL_COX_DIR}}/log"
+INSTALL_LOG_JBOSS: "{{INSTALL_LOG}}/jboss"
+INSTALL_GC_LOG_JBOSS: "{{INSTALL_LOG_JBOSS}}/gc"
+INSTALL_LOG_APACHE: "{{INSTALL_LOG}}/apache"
+
+#Environment variable files installation details
+INSTALL_ENV_VAR_FILE: java_env.sh
+INSTALL_ENV_VAR_FILE_LOCATION: "/etc/profile.d/{{INSTALL_ENV_VAR_FILE}}"
+
+#Start script installation details
+INSTALL_JBOSS_START_SCRIPT: jboss
+INSTALL_APACHE_START_SCRIPT: apache
+INSTALL_START_SCRIPT_SYMBOLIC_LOCATION: /etc/init.d
+INSTALL_JBOSS_START_SCRIPT_SYMBOLIC_LOCATION: "{{INSTALL_START_SCRIPT_SYMBOLIC_LOCATION}}/{{INSTALL_JBOSS_START_SCRIPT}}"
+INSTALL_APACHE_START_SCRIPT_SYMBOLIC_LOCATION: "{{INSTALL_START_SCRIPT_SYMBOLIC_LOCATION}}/{{INSTALL_APACHE_START_SCRIPT}}"
+APP_JBOSS_START_SCRIPT_LOCATION: "{{APP_SBIN_DIR}}/jboss"
+APP_APACHE_START_SCRIPT_LOCATION: "{{APP_SBIN_DIR}}/apache"
+
+#Backup start scripts
+BACKUP_JBOSS_START_SCRIPT_LOCATION: "{{INSTALL_START_SCRIPT_SYMBOLIC_LOCATION}}/jboss_backup"
+BACKUP_APACHE_START_SCRIPT_LOCATION: "{{INSTALL_START_SCRIPT_SYMBOLIC_LOCATION}}/apache_backup"
+
+#Logrotate file location
+INSTALL_LOG_ROTATE_FILE_LOCATION: /etc/logrotate.d
+
+#Application details
+APP_VERSION: 1.0.0-GA
+APP_BUILD_TYPE: GA
+
+#Common parameter
+#JAVA_OPTS_COMMON_PARAM: -server -Xms8g -Xmx8g -XX:PermSize=256m -XX:MaxPermSize=512m -XX:NewSize=512m -XX:MaxNewSize=1g -Xmn1024m -Xss256k -XX:ThreadStackSize=256 -XX:LargePageSizeInBytes=4m -XX:-OmitStackTraceInFastThrow -XX:+UseMembar -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+CMSIncrementalMode -XX:+CMSIncrementalPacing -XX:CMSIncrementalDutyCycleMin=0 -XX:CMSIncrementalDutyCycle=10 -XX:CMSInitiatingOccupancyFraction=65 -XX:+UseCMSInitiatingOccupancyOnly -XX:SurvivorRatio=6 -XX:TargetSurvivorRatio=90 -XX:MaxTenuringThreshold=31 -XX:+AggressiveOpts -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true -Dorg.apache.catalina.STRICT_SERVLET_COMPLIANCE=false -Djava.awt.headless=true -Dorg.jboss.resolver.warning=true -Dsun.lang.ClassLoader.allowArraySyntax=true -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000 -Duser.timezone=GMT -Dorg.jboss.as.logging.per-deployment=false -Djboss.bind.address=`hostname` -Djboss.bind.address.management=0.0.0.0 -Djboss.bind.address.unsecure=0.0.0.0 -Djboss.modules.system.pkgs=$JBOSS_MODULES_SYSTEM_PKGS
+
+JAVA_OPTS_COMMON_PARAM: -server -Xms8g -Xmx8g -XX:NewSize=512m -XX:MaxNewSize=1g -Xmn1024m -Xss256k -XX:ThreadStackSize=256 -XX:LargePageSizeInBytes=4m -XX:-OmitStackTraceInFastThrow -XX:MaxMetaspaceSize=512m -XX:+UseMembar -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+CMSIncrementalMode -XX:+CMSIncrementalPacing -XX:CMSIncrementalDutyCycleMin=0 -XX:CMSIncrementalDutyCycle=10 -XX:CMSInitiatingOccupancyFraction=65 -XX:+UseCMSInitiatingOccupancyOnly -XX:SurvivorRatio=6 -XX:TargetSurvivorRatio=90 -XX:+AggressiveOpts -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true -Dorg.apache.catalina.STRICT_SERVLET_COMPLIANCE=false -Djava.awt.headless=true -Dorg.jboss.resolver.warning=true -Dsun.lang.ClassLoader.allowArraySyntax=true -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000 -Duser.timezone=GMT -Dorg.jboss.as.logging.per-deployment=false -Djboss.bind.address=`hostname` -Djboss.bind.address.management=0.0.0.0 -Djboss.bind.address.unsecure=0.0.0.0 -Djboss.modules.system.pkgs=$JBOSS_MODULES_SYSTEM_PKGS
+
+#Application specific parameters
+JAVA_OPTS_APP_PARAM: -Djboss.modules.system.pkgs=org.aspectj -Dorg.aspectj.weaver.loadtime.configuration=com/cox/aspect/aop.xml -javaagent:/opt/cox/app/modules/org/aspectj/main/aspectjweaver.jar -Dorg.aspectj.tracing.enabled=false -Dorg.aspectj.tracing.factory=default -Dorg.aspectj.weaver.Dump.exception=false -XX:MaxMetaspaceSize=512m
+
+PROCESS_CONTROLLER_JAVA_OPTS: -server -Xms4g -Xmx8g -XX:MaxMetaspaceSize=512m -XX:NewSize=512m -XX:MaxNewSize=1g -Xmn1024m -Xss256k -XX:ThreadStackSize=256 -XX:LargePageSizeInBytes=4m -XX:-OmitStackTraceInFastThrow -XX:+UseMembar -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+CMSIncrementalMode -XX:+CMSIncrementalPacing -XX:CMSIncrementalDutyCycleMin=0 -XX:CMSIncrementalDutyCycle=10 -XX:CMSInitiatingOccupancyFraction=65 -XX:+UseCMSInitiatingOccupancyOnly -XX:SurvivorRatio=6 -XX:TargetSurvivorRatio=90 -XX:+AggressiveOpts -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true -Dorg.apache.catalina.STRICT_SERVLET_COMPLIANCE=false -Djava.awt.headless=true -Dorg.jboss.resolver.warning=true -Dsun.lang.ClassLoader.allowArraySyntax=true -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000 -Duser.timezone=GMT -Dorg.jboss.as.logging.per-deployment=false -Djboss.bind.address={{ansible_hostname}} -Djboss.bind.address.management=0.0.0.0 -Djboss.bind.address.unsecure=0.0.0.0 -Djboss.modules.system.pkgs=$JBOSS_MODULES_SYSTEM_PKGS
+
+HOST_CONTROLLER_JAVA_OPTS: -server -Xms4g -Xmx8g -XX:MaxMetaspaceSize=512m -XX:NewSize=512m -XX:MaxNewSize=1g -Xmn1024m -Xss256k -XX:ThreadStackSize=256 -XX:LargePageSizeInBytes=4m -XX:-OmitStackTraceInFastThrow -XX:+UseMembar -XX:+DisableExplicitGC -XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+CMSIncrementalMode -XX:+CMSIncrementalPacing -XX:CMSIncrementalDutyCycleMin=0 -XX:CMSIncrementalDutyCycle=10 -XX:CMSInitiatingOccupancyFraction=65 -XX:+UseCMSInitiatingOccupancyOnly -XX:SurvivorRatio=6 -XX:TargetSurvivorRatio=90 -XX:+AggressiveOpts -Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=true -Dorg.apache.catalina.STRICT_SERVLET_COMPLIANCE=false -Djava.awt.headless=true -Dorg.jboss.resolver.warning=true -Dsun.lang.ClassLoader.allowArraySyntax=true -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000 -Duser.timezone=GMT -Dorg.jboss.as.logging.per-deployment=false -Djboss.bind.address={{ansible_hostname}} -Djboss.bind.address.management=0.0.0.0 -Djboss.bind.address.unsecure=0.0.0.0 -Djboss.modules.system.pkgs=$JBOSS_MODULES_SYSTEM_PKGS
+
+#Softwares and Application rollback details 
+ROLLBACK_JDK_LOCATION: /opt/jdk1.7.0_79
+#ROLLBACK_JBOSS_LOCATION: /opt/jboss-eap-6.1
+#ROLLBACK_APACHE_LOCATION: /opt/apache-2.2.17
+ROLLBACK_APP_LOCATION: /opt/cox/2.6.0-CD5
+
+#smoke test 
+SMOKE_TEST_HEADER_PARAM: Transaction-Id:123
+SMOKE_TEST_URL: http://localhost:8080/ccm/healthcheck
+
+#start jboss at startup
+start_jboss: yes
+
+#app log
+APP_LOG_NAME: cox.log
+
+#certificate file
+LDAP_CERT: 
+
+
+#limit conf file location
+LIMIT_CONF_FILE_LOCATION: /etc/security
+
+#application version file location
+APP_VERSION_FILE_LOCATION: "{{APP_VERSION_WAR}}version.txt"
+APP_NAME_IN_JBOSS_SCRIPT: TMBATCH
+
+#jboss eap patch details
+INSTALL_JBOSS_EAP_PATCH: "true"
+JBOSS_EAP_PATCH_NAME: jboss-eap-6.4.8-patch.zip
+JBOSS_EAP_PATCH_LOCATION: /var/tmp/release
+JBOSS_EAP_PATCH_FILE_LOCATION: "{{JBOSS_EAP_PATCH_LOCATION}}/{{JBOSS_EAP_PATCH_NAME}}"
+PATCHED_JBOSS_EAP_VERSION: "\"product-version\" => \"6.4.8.GA\""
+
+#proxy-fuse-jms
+ACS_MESSAGE_TIME_TO_LIVE: 300000
+
+#test variable
+INSTALL_HOME_JDK_SYMBOLIC_FILE: /opt/jdk
+INSTALL_JDK_LOCATION_TEST: /opt/jdk1.8.0_102
+INSTALL_JBOSS_SYMBOLIC_FILE: /opt/jboss-eap
+INSTALL_JBOSS_SOURCE_LOCATION:  /opt/jboss-eap-6.4

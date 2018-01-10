@@ -1,0 +1,12 @@
+---
+
+- name: testing
+  replace: dest=/opt/ansible-playbooks/deploy_facts/facts.log
+     regexp="{{rnum1}}"
+     replace="{{ansible_date_time.date}}"
+
+- name: testing
+  replace: dest=/opt/ansible-playbooks/deploy_facts/facts.log
+     regexp="{{rnum2}}"
+     replace="{{ansible_date_time.time}}"
+

@@ -1,0 +1,139 @@
+---
+# file: roles/sail_app_servers/tasks/splunk_monitor.yml
+
+#- name: remove specified log files from splunk monitor
+#  command: /sbin/service jboss splunk-monitor-log -remove {{REMOVE_SPLUNK_MONITOR_LOGS}}
+#  become: yes
+#  become_user: root
+#  when: REMOVE_SPLUNK_MONITOR_LOGS is defined and REMOVE_SPLUNK_MONITOR_LOGS != ""
+
+#- name: add jboss log files from splunk monitor  
+#  command: /sbin/service jboss splunk-monitor-log -add -jboss {{ADD_SPLUNK_MONITOR_JBOSS_LOGS}}
+#  become: yes
+#  become_user: root
+#  when: ADD_SPLUNK_MONITOR_JBOSS_LOGS is defined and ADD_SPLUNK_MONITOR_JBOSS_LOGS != ""  
+  
+#- name: add apache log files from splunk monitor  
+#  command: /sbin/service jboss splunk-monitor-log -add -apache {{ADD_SPLUNK_MONITOR_APACHE_LOGS}}
+#  become: yes
+#  become_user: root
+#  when: ADD_SPLUNK_MONITOR_APACHE_LOGS is defined and ADD_SPLUNK_MONITOR_APACHE_LOGS != ""     
+#
+
+- name: Checking if splunk config folder exists under /opt/cox
+  stat: path={{ APP_SPLUNK_CONFIGURATION_DIR }}
+  become: yes
+  become_user: root
+  register: splunk_conf_dir_stat_result
+
+- name: If splunk config folder does not exist the create new one
+  file: path={{ APP_SPLUNK_CONFIGURATION_DIR }} state=directory mode=0755 owner=jboss group=jboss
+  become: yes
+  become_user: root
+  when: not splunk_conf_dir_stat_result.stat.exists
+
+ 
+- name: Check if splunk is installed
+  stat: path="{{SPLUNK_SCRIPT_LOCATION}}"
+  become: yes
+  become_user: root
+  register: is_splunk_installed
+
+- name: If splunk is installed then stop it
+  service: name=splunk state=stopped
+  become: yes
+  become_user: root
+  when: ((is_splunk_installed.stat.exists and is_splunk_installed.stat.islnk == True)  or (is_splunk_installed.stat.exists and is_splunk_installed.stat.isreg == True))
+
+- name: Check if inputs.conf exists
+  stat: path="{{SPLUNK_INPUT_CONF_LOCATION}}/inputs.conf"
+  become: yes
+  become_user: root
+  register: is_splunk_inputs_conf_exists
+  when: is_splunk_installed.stat.exists
+
+- name: Backup inputs.conf if it exists
+  command: mv {{SPLUNK_INPUT_CONF_LOCATION}}/inputs.conf {{SPLUNK_INPUT_CONF_LOCATION}}/inputs.conf_backup_{{ansible_date_time.epoch}}
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists and (is_splunk_inputs_conf_exists is defined and is_splunk_inputs_conf_exists.stat.islnk == False) 
+
+- name: Copy input.conf to /opt/cox/configuration/splunk and change permission
+  template: src={{item.src}}  dest={{APP_SPLUNK_CONFIGURATION_DIR}}/{{item.dest}} mode=0644 owner=root group=root  
+  with_items:
+   - { src: 'inputs.conf.j2', dest: 'inputs.conf' } 
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists 
+
+- name: Create symbolic link of inputs.conf under <SPLUNK_HOME>/etc/system/local directory
+  file: src={{item.src}} dest={{SPLUNK_INPUT_CONF_LOCATION}}/{{item.dest}} state=link mode=0644 owner=root group=root  
+  with_items:
+   - { src: '{{APP_SPLUNK_CONFIGURATION_DIR}}/inputs.conf', dest: 'inputs.conf' }
+  become: yes
+  become_user: root    
+  when: is_splunk_installed.stat.exists
+
+- name: Check if outputs.conf exists
+  stat: path="{{SPLUNK_INPUT_CONF_LOCATION}}/outputs.conf"
+  become: yes
+  become_user: root
+  register: is_splunk_outputs_conf_exists
+  when: is_splunk_installed.stat.exists
+
+- name: Backup outputs.conf if it exists
+  command: mv {{SPLUNK_INPUT_CONF_LOCATION}}/outputs.conf {{SPLUNK_INPUT_CONF_LOCATION}}/outputs.conf_backup_{{ansible_date_time.epoch}}
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists and (is_splunk_outputs_conf_exists is defined and is_splunk_outputs_conf_exists.stat.islnk == False)
+
+- name: Copy outputs.conf to /opt/cox/configuration/splunk and change permission
+  template: src={{item.src}}  dest={{APP_SPLUNK_CONFIGURATION_DIR}}/{{item.dest}} mode=0644 owner=root group=root
+  with_items:
+   - { src: 'outputs.conf.j2', dest: 'outputs.conf' }
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists
+
+- name: Create symbolic link of outputs.conf under <SPLUNK_HOME>/etc/system/local directory
+  file: src={{item.src}} dest={{SPLUNK_INPUT_CONF_LOCATION}}/{{item.dest}} state=link mode=0644 owner=root group=root
+  with_items:
+   - { src: '{{APP_SPLUNK_CONFIGURATION_DIR}}/outputs.conf', dest: 'outputs.conf' }
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists
+  
+- name: Check if props.conf exists
+  stat: path="{{SPLUNK_INPUT_CONF_LOCATION}}/props.conf"
+  become: yes
+  become_user: root
+  register: is_splunk_props_conf_exists
+  when: is_splunk_installed.stat.exists
+
+- name: Backup props.conf if it exists
+  command: mv {{SPLUNK_INPUT_CONF_LOCATION}}/props.conf {{SPLUNK_INPUT_CONF_LOCATION}}/props.conf_backup_{{ansible_date_time.epoch}}
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists and (is_splunk_props_conf_exists is defined and is_splunk_props_conf_exists.stat.islnk == False)
+
+- name: Copy props.conf to /opt/cox/configuration/splunk and change permission
+  template: src={{item.src}}  dest={{APP_SPLUNK_CONFIGURATION_DIR}}/{{item.dest}} mode=0644 owner=root group=root
+  with_items:
+   - { src: 'props.conf.j2', dest: 'props.conf' }
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists
+
+- name: Create symbolic link of props.conf under <SPLUNK_HOME>/etc/system/local directory
+  file: src={{item.src}} dest={{SPLUNK_INPUT_CONF_LOCATION}}/{{item.dest}} state=link mode=0644 owner=root group=root
+  with_items:
+   - { src: '{{APP_SPLUNK_CONFIGURATION_DIR}}/props.conf', dest: 'props.conf' }
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists
+
+- name: Start splunk
+  service: name=splunk state=started
+  become: yes
+  become_user: root
+  when: is_splunk_installed.stat.exists

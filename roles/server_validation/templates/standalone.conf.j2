@@ -1,0 +1,77 @@
+JAVA_HOME={{ JAVA_HOME }}
+
+if [ "x$JBOSS_MODULES_SYSTEM_PKGS" = "x" ]; then
+   JBOSS_MODULES_SYSTEM_PKGS="org.jboss.byteman"
+fi
+PRESERVE_JAVA_OPTS="true"
+
+#
+# Specify options to pass to the Java VM.
+#
+if [ "${JAVA_OPTS}" == "" ]; then
+   JAVA_OPTS="{{ JAVA_OPTS_COMMON_PARAM }}"
+else
+   JAVA_OPTS="${JAVA_OPTS} {{ JAVA_OPTS_COMMON_PARAM }}"
+fi
+
+
+#if [ "${JBOSS_CLASSPATH}" == "" ]; then
+#   JBOSS_CLASSPATH="/opt/jboss-eap-6.1/standalone/configuration"
+#else
+#   JBOSS_CLASSPATH="${JBOSS_CLASSPATH}:/opt/jboss-eap-6.1/standalone/configuration"
+#fi
+
+# web server configurations
+JAVA_OPTS="${JAVA_OPTS} -Dorg.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH=true"
+JAVA_OPTS="${JAVA_OPTS} -Dorg.apache.coyote.ajp.DEFAULT_KEEP_ALIVE_TIMEOUT=60000"
+JAVA_OPTS="${JAVA_OPTS} -Dorg.apache.coyote.http11.DEFAULT_KEEP_ALIVE_TIMEOUT=60000"
+JAVA_OPTS="${JAVA_OPTS} -Dorg.apache.coyote.http11.Http11Protocol.MAX_KEEP_ALIVE_REQUESTS=16"
+
+# hostname details
+JAVA_OPTS="${JAVA_OPTS} -Djava.rmi.server.hostname=`hostname -i`"
+JAVA_OPTS="${JAVA_OPTS} -Dcom.cox.hostname=`hostname`"
+
+# version details
+JAVA_OPTS="${JAVA_OPTS} -Dcom.cox.version={{project_version}}"
+
+# environment details
+JAVA_OPTS="${JAVA_OPTS} -Dcom.cox.environment={{COX_ENVIRONMENT}}"
+
+# GC details
+JAVA_OPTS="${JAVA_OPTS} -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCApplicationStoppedTime -XX:+PrintGCApplicationConcurrentTime -XX:+PrintTenuringDistribution -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=30 -XX:GCLogFileSize=12M -Xloggc:{{ INSTALL_GC_LOG_JBOSS }}/gc-`date +%Y-%m-%d-%H-%M-%S`.log"
+
+# Specify the Security Manager options
+#JAVA_OPTS="${JAVA_OPTS} -Djava.security.manager -Djava.security.policy=${POLICY}"
+JAVA_OPTS="${JAVA_OPTS} -Djava.security.edgfile={{JAVA_SECURITY_EDGFILE}}"
+
+# Sample JPDA settings for remote socket or memory debugging
+#JAVA_OPTS="${JAVA_OPTS} -Xrunjdwp:transport=dt_socket,address=8787,server=y,suspend=n"
+#PROCESS_CONTROLLER_JAVA_OPTS="$PROCESS_CONTROLLER_JAVA_OPTS -Xrunjdwp:transport=dt_socket,address=8788,server=y,suspend=n"
+#HOST_CONTROLLER_JAVA_OPTS="$HOST_CONTROLLER_JAVA_OPTS -Xrunjdwp:transport=dt_socket,address=8787,server=y,suspend=n"
+#JAVA_OPTS="${JAVA_OPTS} -Xrunjdwp:transport=dt_shmem,address=jboss,server=y,suspend=n"
+#PROCESS_CONTROLLER_JAVA_OPTS="$PROCESS_CONTROLLER_JAVA_OPTS -Xrunjdwp:transport=dt_shmem,server=y,suspend=n,address=jboss"
+#HOST_CONTROLLER_JAVA_OPTS="$HOST_CONTROLLER_JAVA_OPTS -Xrunjdwp:transport=dt_shmem,server=y,suspend=n,address=jboss"
+
+#Heap Dump Details
+#JAVA_OPTS="$ {JAVA_OPTS} -verbose:heapdump -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{ INSTALL_LOG_JBOSS }}
+
+# Uncomment to not use JBoss Modules lockless mode
+#JAVA_OPTS="${JAVA_OPTS} -Djboss.modules.lockless=false
+
+# Uncomment to gather JBoss Modules metrics
+#JAVA_OPTS="${JAVA_OPTS} -Djboss.modules.metrics=true
+
+JAVA_OPTS="${JAVA_OPTS} {{ JAVA_OPTS_APP_PARAM | default() }}"
+
+# The ProcessController process uses its own set of java options
+if [ "x${PROCESS_CONTROLLER_JAVA_OPTS}" = "x" ]; then
+    PROCESS_CONTROLLER_JAVA_OPTS="{{ PROCESS_CONTROLLER_JAVA_OPTS }}"
+fi
+
+# The HostController process uses its own set of java options
+if [ "x${HOST_CONTROLLER_JAVA_OPTS}" = "x" ]; then
+    HOST_CONTROLLER_JAVA_OPTS="{{ HOST_CONTROLLER_JAVA_OPTS }}"
+fi
+
+#Setup Jboss module path
+export JBOSS_MODULEPATH="{{ JBOSS_MODULES }}/:{{ APP_MODULES_DIR }}/"

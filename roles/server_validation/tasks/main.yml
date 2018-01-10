@@ -1,0 +1,55 @@
+
+---
+# file: roles/orbit_app_servers/tasks/main.yml
+
+- name: Orbit server setup tasks - as jboss
+  include: jboss_tasks.yml
+  become: yes
+  become_user: jboss
+
+- name: common tasks for version_war and healthcheck_jsp
+  include: '{{COMMON_PLAYBOOK_PATH}}/version_healthcheck.yml'
+  become: yes
+  become_user: jboss
+    
+- name: Create symlink of logrotate configuration file into /etc/logrotate.d
+  file: src={{item.src}} dest={{INSTALL_LOG_ROTATE_FILE_LOCATION}}/{{item.dest}} state=link  mode=0755 owner=root group=root
+  with_items:
+   - { src: '{{ APP_JBOSS_CONFIGURATION_DIR }}/jboss-eap-logrotate', dest: 'jboss-eap-logrotate' }
+#  - { src: '{{ APP_APACHE_CONFIGURATION_DIR }}/apache-logrotate', dest: 'apache-logrotate' }
+  become: yes
+  become_user: root    
+
+- name: Starting Jboss Server
+  service: name=jboss state=started enabled=yes
+  become: yes
+  become_user: root
+#  when: start_jboss == "yes"
+
+- name: Smoke Test
+  action: uri url=http://localhost:8080/version.txt return_content=yes
+  register: url_response
+   
+#  register: url_response
+#  become: yes
+#  become_user: root
+#  when: start_jboss == "yes"
+
+#- name: Verify response print message if it is success 
+#  debug: msg="SUCCESS - Jboss is running"
+#  when: "'1.0.1' in url_response.content"
+
+#- name: Verify response print message if it is fail 
+#  debug: msg="FAILED - Jboss is not running"
+#  when: "'1.0.1' not in url_response.content"
+  
+- name: Stop server if validation fail
+  service: name=jboss state=stopped
+  when: url_response is defined and url_response.stderr != ""   
+
+- name: Configuring splunk monitor
+  include: splunk_monitor.yml
+  when: CONFIGURE_LOG_SPLUNK_MONITOR is defined and CONFIGURE_LOG_SPLUNK_MONITOR == "true"
+  tags: 
+    - splunk_monitor
+

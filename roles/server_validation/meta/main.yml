@@ -1,0 +1,5 @@
+---
+# file: roles/sail_eap_servers/meta/main.yml
+dependencies:
+- { role: package_deploy }
+- { role: config-limits }

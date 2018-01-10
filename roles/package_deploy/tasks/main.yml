@@ -1,0 +1,75 @@
+---
+# file: roles/common_app_servers/tasks/main.yml
+
+
+- name: Check if the untarred version exists
+  stat: path={{ INSTALL_JDK_LOCATION }}
+  register: jdk_stat_result
+
+- name: Check if the untarred JBoss exists
+  stat: path={{ INSTALL_JBOSS_LOCATION }}
+  register: jboss_stat_result
+
+- name: Jdk Jboss validation
+  fail: msg="Jdk jboss not installed as expected"
+  when: (not jdk_stat_result.stat.exists) or (not jboss_stat_result.stat.exists)
+
+- name: Check if Jboss Service Exists
+  stat: path={{INSTALL_JBOSS_START_SCRIPT_SYMBOLIC_LOCATION}}
+  register: jboss_service
+
+- name: Check if Jboss Service script Exists
+  stat: path={{APP_JBOSS_START_SCRIPT_LOCATION}}
+  register: jboss_service_script
+
+- name: Check if jdk Sym link  Exists
+  stat: path={{INSTALL_JDK_SYMBOLIC_LINK_DEST}}
+  register: jdk_symlink_result
+
+- name: Symbolic link to jdk
+  file: src={{ INSTALL_JDK_LOCATION }} dest={{ INSTALL_JDK_SYMBOLIC_LINK_DEST }} state=link owner=jboss group=jboss
+  become: yes
+  when: (not jdk_symlink_result.stat.exists)
+
+- name: Check if Jboss Sym link  Exists
+  stat: path={{INSTALL_JBOSS_SYMBOLIC_LINK_DEST}}
+  register: jboss_symlink_result
+
+- name: Symbolic link to JBoss
+  file: src={{ INSTALL_JBOSS_LOCATION }} dest={{ INSTALL_JBOSS_SYMBOLIC_LINK_DEST }} state=link owner=jboss group=jboss
+  become: yes
+  when: (not jboss_symlink_result.stat.exists)
+
+- name: Stopping Jboss Server
+  service: name=jboss state=stopped
+  when: ((jboss_service.stat.exists and jboss_service.stat.islnk == True) and jboss_service_script.stat.exists) or (jboss_service.stat.exists and jboss_service.stat.isreg == True)
+  become: yes
+  become_user: root
+
+
+
+- name: Extract the package (locally)
+  include: extract_tasks.yml
+
+- name: Check if version.yml file exists in tarball
+  stat: path={{ extract_application_path }}/version.yml
+  register: version_yml
+  delegate_to: "{{ ANSIBLE_MASTER_NODE }}"
+
+- name: load in the YAML file from the package containing the version name
+  include_vars: "{{ extract_application_path }}/version.yml"
+  when: version_yml.stat.exists
+  delegate_to: "{{ ANSIBLE_MASTER_NODE }}"
+
+- name: get current timestamp
+  set_fact:
+     current_timestamp: "{{ansible_date_time.year}}{{ansible_date_time.month}}{{ansible_date_time.day}}{{ansible_date_time.hour}}{{ansible_date_time.minute}}{{ansible_date_time.second}}"
+
+- name: Set app directory location
+  set_fact:
+    app_dir: "{{INSTALL_COX_DIR}}/{{ project_version }}-{{current_timestamp}}" 
+
+- name: Common app server setup tasks - as root
+  include: root_tasks.yml
+  become: yes
+  become_user: root

@@ -1,0 +1,28 @@
+---
+
+- block:
+# no harm in leaving these
+    - name: setup jboss nproc in limits.d
+      template: src="etc_security_limits_d_cox_user.conf.j2"
+            dest="{{ cox_security_limits_path }}/cox_user.conf"
+            owner=root group=root mode=0644
+
+    - name: "remove legacy entries from limits.conf"
+      lineinfile:
+         dest: "/etc/security/limits.conf"
+         regexp: "^jboss .*"
+         state: absent
+         backup: yes
+
+    # legacy cleanup
+    - name: check for legacy files from limits.d dir
+      file: 
+        path: "{{ cox_security_limits_path }}/{{ item }}" 
+        state: absent
+      with_items:
+        - jboss.conf
+        - dai.conf
+        - 10-jboss.conf
+        - 10-dai.conf
+
+  become: yes

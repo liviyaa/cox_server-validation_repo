@@ -1,0 +1,8 @@
+---
+
+  cox_security_limits_path: /etc/security/limits.d
+
+  cox_security_limits:
+    - { domain: jboss, type: hard, key: nproc, value: 139264 }
+    - { domain: jboss, type: soft, key: nproc, value: 139264 }
+

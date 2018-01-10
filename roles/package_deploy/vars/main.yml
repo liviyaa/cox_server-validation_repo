@@ -1,0 +1,4 @@
+---
+extract_temp_dir: "{{ APP_TEMP_DIR_LOCATION }}"
+extract_application_path: "{{ extract_temp_dir }}/{{ APP_NAME }}"
+  

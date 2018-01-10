@@ -1,0 +1,155 @@
+#Rotate all log files the same way
+/opt/cox/log/jboss/*.log {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*1 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*2 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*3 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*4 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*5 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*6 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*7 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*8 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*9 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
+/opt/cox/log/jboss/*0 {
+  compress
+  missingok
+  copytruncate
+  nomail
+  rotate 5
+  daily
+  dateext
+  sharedscripts
+  postrotate
+     nice /etc/init.d/jboss cleanup 14 5 > /opt/cox/log/jboss/cleanup.log
+  endscript
+}
+
